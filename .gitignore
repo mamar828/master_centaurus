@@ -1,0 +1,20 @@
+# Exclude these file extensions
+*.fits
+*.pkl
+*.gz
+*.dll
+*.dat
+
+# Exclude these file prefixes
+__*
+.*
+
+# Do not ignore the hidden .gitignore file
+!.gitignore
+
+# Also exclude these specific files and folders
+data
+figures
+tests.*
+test.*
+t.*
