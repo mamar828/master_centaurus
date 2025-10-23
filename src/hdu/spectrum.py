@@ -47,8 +47,7 @@ class Spectrum(FitsObject):
         Returns
         -------
         np.ndarray
-            Range from 1 and has the same length than the data array. The start value is chosen to match with SAOImage
-            ds9 and with the headers, whose axes start at 1.
+            A range from 1 to N_channels. The start value is chosen to match with fits file conventions.
         """
         return np.arange(1, len(self) + 1)
 

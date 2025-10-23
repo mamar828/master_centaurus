@@ -1,8 +1,9 @@
 from __future__ import annotations
 import numpy as np
 import pyregion
-from astropy.io import fits
 import scipy
+from graphinglib import Heatmap
+from astropy.io import fits
 from scipy.ndimage import rotate as ndimage_rotate
 from uncertainties import ufloat
 from reproject import reproject_interp
@@ -462,23 +463,25 @@ class Map(FitsObject, MathematicalObject):
             header=header.copy()
         )
 
-    def rotate_field(self) -> Self:
+    def rotate_field(self) -> Heatmap:
         """
         Rotates a NIRSpec Map to align it with the plot axes. The Map is rotated by 47 degrees clockwise.
 
         Returns
         -------
-        Self
-            The rotated Map aligned with the plot x/y axes. The map is also cropped of its border nans.
-
-            .. warning::
-                The outputted Map does not have a header.
+        Heatmap
+            A Heatmap of the rotated Map aligned with the plot x/y axes.
         """
-        magic_angle = 47  # degrees clockwise
-        return self.__class__(
-            data=ndimage_rotate(self.data, magic_angle, reshape=False, cval=np.nan, order=1),
-            uncertainties=(
-                ndimage_rotate(self.uncertainties, magic_angle, reshape=False, cval=np.nan, order=1)
-                if self.has_uncertainties else SilentNone()
-            ),
-        ).crop_nans()
+        magic_angle = -47  # clockwise rotation (in degrees)
+        n, m = self.shape
+        y, x = np.mgrid[:n+1, :m+1]  # grids of each cell x/y corners
+
+        # Rotation
+        theta = np.deg2rad(magic_angle)
+        x_rot = x * np.cos(theta) - y * np.sin(theta)
+        y_rot = x * np.sin(theta) + y * np.cos(theta)
+
+        hm = self.data.plot
+        hm._x_coordinates = x_rot
+        hm._y_coordinates = y_rot
+        return hm

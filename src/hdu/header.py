@@ -300,14 +300,14 @@ class Header(fits.Header):
                 The input pixel coordinates should be in the format (y, x) with **0-based indexing** as per numpy's
                 convention, not (x, y) with 1-based indexing as per the FITS standard. This means that the first column
                 should contain the y pixel coordinates and the second column should contain the x pixel coordinates. For
-                using ds9 coordinates, see the `src.coordinates.fits_coords.FitsCoords` class.
+                using fits coordinates, see the `src.coordinates.fits_coords.FitsCoords` class.
 
         Returns
         -------
         np.ndarray
             World coordinates corresponding to the input pixel coordinates. The output will be a 2D array with shape
             (n, m) where the second dimension contains the world coordinates (e.g. [RA, DEC, velocity] for an equatorial
-            conversion).
+            conversion). The coordinate values will be in degrees.
         """
         if isinstance(pixel_coords, list):
             pixel_coords = np.array(pixel_coords)
@@ -330,7 +330,8 @@ class Header(fits.Header):
         world_coords : list[float] | np.ndarray[float]
             World coordinates to convert to pixel coordinates. This should be a 2D array with shape (n, m) where n is
             the number of coordinates and the second dimension contains the m-dimensional coordinates in standard
-            celestial format (e.g. [RA, DEC, velocity] for an equatorial conversion).
+            celestial format (e.g. [RA, DEC, velocity] for an equatorial conversion). The coordinate values should be
+            in degrees.
 
         Returns
         -------
@@ -342,7 +343,7 @@ class Header(fits.Header):
                 The output pixel coordinates will be in the format (y, x) with **0-based indexing** as per numpy's
                 convention, not (x, y) with 1-based indexing as per the FITS standard. This means that the first column
                 will contain the y pixel coordinates and the second column will contain the x pixel coordinates. For
-                converting to ds9 coordinates, see the `src.coordinates.fits_coords.FitsCoords` class.
+                converting to fits coordinates, see the `src.coordinates.fits_coords.FitsCoords` class.
         """
         if isinstance(world_coords, list):
             world_coords = np.array(world_coords)
@@ -351,6 +352,6 @@ class Header(fits.Header):
         elif world_coords.ndim != 2:
             raise ValueError("world_coords must be a 2D array.")
 
-        pixel_coords = self.wcs.world_to_pixel_values(*world_coords.T)
-        pixel_coords = np.array(pixel_coords)[::-1].T
+        x, y = self.wcs.world_to_pixel_values(*world_coords.T)
+        pixel_coords = np.column_stack((y, x))
         return pixel_coords
