@@ -68,7 +68,7 @@ class Coord:
     def from_sexagesimal(cls, value: str) -> Coord:
         """
         Creates a Coord object from a string in the format "degrees:minutes:seconds" to degrees. This method is invalid
-        for the RA class, which uses hours instead of degrees..
+        for the RA class, which uses hours instead of degrees.
 
         Parameters
         ----------
@@ -81,7 +81,8 @@ class Coord:
             New Coord object representing the given sexagesimal string.
         """
         whole_degrees, minutes, seconds = [float(val) for val in value.split(":")]
-        degrees = whole_degrees + minutes / 60 + seconds / 3600
+        sign = -1 if whole_degrees < 0 else 1
+        degrees = whole_degrees + sign * (minutes / 60 + seconds / 3600)
         return cls(degrees)
 
     @property
