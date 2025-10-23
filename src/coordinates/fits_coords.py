@@ -1,33 +1,33 @@
 from __future__ import annotations
 
 
-class DS9Coords:
+class FitsCoords:
     """
-    Encapsulates the methods specific to SAOImage ds9 coordinates and their conversion.
-    To properly use this class, an object may be created, then unpacked to be given to methods that require normal ints.
-    This allows for any function to use this class as the unpacked values are ints.
+    Encapsulates the methods specific to .fits coordinates, namely 1-based indexing and inverted axes order.
+    An object of this class may be used just like a tuple of ints, but the values are automatically converted to
+    numpy-compatible coordinates when accessed. You can also unpack this object to get the converted values as ints.
 
     Examples
     --------
-    spectrum = Cube[:,*DS9Coords(5,10)]
+    spectrum = Cube[:,*FitsCoords(5,10)]
     will correctly slice the Cube at the specified coordinates, which returns a Spectrum.
 
-    The following lines show how useful this class is for precisely slicing a FitsObject object. To get the value at the
-    (x, y, z) = (8, 17, 225) on SAOImage ds9, the following code is equivalent :
-    using DS9Coords :   print(Cube[*DS9Coords(8, 17, 225)])
-    without DS9Coords : print(Cube[224, 16, 7])
+    The following lines show how useful this class is for precisely slicing a FitsObject. To get the value at the
+    (x, y, z) = (8, 17, 225) on a .fits file, the following code is equivalent :
+    using FitsCoords :   print(Cube[*FitsCoords(8, 17, 225)])
+    without FitsCoords : print(Cube[224, 16, 7])
     In the former case, the coordinates can intuitively be entered and in the latter, an awkward double conversion is
     required.
     """
 
     def __init__(self, *coordinates: tuple[int]):
         """
-        Initialize a DS9Coords object.
+        Initialize a FitsCoords object.
 
         Parameters
         ----------
         coordinates : tuple[int]
-            Coordinates to initialize the object with. These are given in the same order as in DS9.
+            Coordinates to initialize the object with. These are given in the same order as in fits files.
         """
         self.data = list(coordinates)
 
@@ -36,9 +36,9 @@ class DS9Coords:
 
     def __getitem__(self, key: int) -> int:
         """
-        Gives the value of the specified key by converting the DS9 coordinate to a numpy one. The conversion is made by
+        Gives the value of the specified key by converting the fits coordinate to a numpy one. The conversion is made by
         inverting the coordinates order (e.g. x,y -> y,x) as numpy indexing starts with the "last index", then by
-        removing 1 because DS9 indexing starts at (1,1), and not (0,0).
+        subtracting 1 because fits indexing starts at 1 and not 0.
         """
         # Roll axis to account for the coordinate switch
         index = len(self) - 1 - key
@@ -47,16 +47,16 @@ class DS9Coords:
             coord = self.data[index] - 1
             return coord
         else:
-            # Allows the use of the unpacking operator
+            # This clause is required by the unpacking operator
             raise IndexError
 
     def __str__(self):
-        return f"DS9Coords({', '.join(map(str, self.data))})"
+        return f"FitsCoords({', '.join(map(str, self.data))})"
 
     @classmethod
-    def from_python(cls, *coordinates: tuple[int]) -> DS9Coords:
+    def from_python(cls, *coordinates: tuple[int]) -> FitsCoords:
         """
-        Create a DS9Coords object from Python coordinates.
+        Create a FitsCoords object from Python coordinates.
 
         Parameters
         ----------
@@ -65,8 +65,8 @@ class DS9Coords:
 
         Returns
         -------
-        DS9Coords
-            A new DS9Coords object initialized with the provided coordinates.
+        FitsCoords
+            A new FitsCoords object initialized with the provided coordinates.
         """
         coords = coordinates[::-1]
         coords = [c + 1 for c in coords]
