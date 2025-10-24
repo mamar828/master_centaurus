@@ -373,7 +373,7 @@ class Map(FitsObject, MathematicalObject):
 
     def mask(self, mask: np.ndarray) -> Self:
         """
-        Masks the Map with a given boolean mask.
+        Masks the Map with a given boolean mask. The returned Map will have np.NAN values where the mask is False.
 
         Parameters
         ----------
