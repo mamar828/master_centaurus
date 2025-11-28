@@ -1,0 +1,18 @@
+# Roland Bacon Meeting (invited speaker)
+- Wide-field spectroscopic facility
+- The WST aims at being smaller than the VLT
+	- 12 m aperture
+	- 0.35m-1.6m
+	- Two instruments working in parallel:
+		- MOS (multi-object spectrograph): high resolution, 
+		- IFS (integral field spectrograph): simultaneous spectra of a complete region of the sky
+- Upgrade: use 500 IR detectors (very expensive)
+- WST's MOS and IFS really stand out from other telescopes' instruments.
+- MOS is the first instrument to work with multiple focal planes in parallel.
+- The detectors should be curved to have the best results, so there were some attempts at curving the MOS detectors.
+- They want to place this facility on a mountain peak in Chili, within the ESO concession limit.
+- In the first 5 years of operation, star and galaxy observations are planned, and the WST will provide 4 billion spectra. Main science themes: origins of elements/the MW/planets/stars/cosmology (e.g. reionization).
+- WST's large FOV will be able to trace the cosmic web at unprecedented scales at each redshift.
+- WST will also be able to reconstruct the DM distribution due to its depth (faintness) of detection and its precise redshift measurement
+- WST will do a full sky survey up to redshift 7 (compared to 4 with previous instruments). It might be able to discern single-field inflation from multi-field inflation.
+- WST will identify EM counterparts of GW events, detected with the Einstein telescope.
