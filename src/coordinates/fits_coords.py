@@ -27,7 +27,8 @@ class FitsCoords:
         Parameters
         ----------
         coordinates : tuple[int]
-            Coordinates to initialize the object with. These are given in the same order as in fits files.
+            Coordinates to initialize the object with. These are given in the same order as in fits files and follow
+            one-based indexing.
         """
         self.data = list(coordinates)
 

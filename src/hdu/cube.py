@@ -85,7 +85,7 @@ class Cube(FitsObject):
         return self.data.shape
 
     @classmethod
-    def load(cls, filename: str) -> Cube:
+    def load(cls, filename: str, hdu_index: int = 0) -> Cube:
         """
         Loads a Cube from a .fits file.
 
@@ -93,13 +93,15 @@ class Cube(FitsObject):
         ----------
         filename : str
             Name of the file to load.
+        hdu_index : int, default=0
+            Index of the HDU to load from the file. This parameter allows loading files with multiple HDUs.
 
         Returns
         -------
         Cube
             An instance of the given class containing the file's contents.
         """
-        fits_object = fits.open(filename)[0]
+        fits_object = fits.open(filename)[hdu_index]
         cube = cls(
             Array3D(fits_object.data),
             Header(fits_object.header)
