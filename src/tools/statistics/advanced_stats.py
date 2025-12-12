@@ -53,58 +53,63 @@ def get_fitted_structure_function_figure(
     -------
     gl.SmartFigure
         A log-log Figure containing the data points and their uncertainty as well as a linear fit in the given bounds
-        with its corresponding equation.
+        with its corresponding fitted slope.
     """
-    logged_data = np.log10(data)
     scatter = gl.Scatter(
-        logged_data[:,0],
-        logged_data[:,1],
+        data[:, 0],
+        data[:, 1],
         marker_size=3,
         face_color="black",
     )
-    # Uncertainties are given in the order left, right or bottom, top
-    uncertainties = np.array([
-        np.abs(logged_data[:,1] - np.log10(data[:,1] - data[:,2])),
-        np.abs(np.log10(data[:,1] + data[:,2]) - logged_data[:,1]),
-    ])
     scatter.add_errorbars(
-        y_error=uncertainties,
+        y_error=data[:, 2],
         cap_width=0,
         errorbars_line_width=0.25,
     )
 
     # Fit and its uncertainty
-    m = (fit_bounds[0] < logged_data[:,0]) & (logged_data[:,0] < fit_bounds[1])     # generate the fit mask
-    data_distributions = [SplitNormal(loc, *u) for loc, u in zip(logged_data[m,1], uncertainties.T[m])]
-    values = np.array([sn.random(number_of_iterations) for sn in data_distributions]).T
+    m = (fit_bounds[0] < data[:,0]) & (data[:, 0] < fit_bounds[1])  # generate the fit mask
+    x_values_fit = data[m, 0]
+    y_values_distributions = np.random.normal(loc=data[m, 1], scale=data[m, 2], size=(number_of_iterations, np.sum(m)))
     parameters = []
-    for val in values:
+    for y_values_fit in y_values_distributions:
         parameters.append(curve_fit(
-            f=lambda x, m, b: m*x + b,
-            xdata=logged_data[m,0],
-            ydata=val,
-            p0=[0.1,0.1],
+            f=lambda x, m, b: b * x**m,
+            xdata=x_values_fit,
+            ydata=y_values_fit,
+            p0=[0.1, 0.1],
             maxfev=100000
         )[0])
+        # m, b = parameters[-1]
+        # fig = gl.SmartFigure(
+        #     x_lim=(0.9*21.4, 20*21.4),
+        #     y_lim=(100, 360),
+        #     elements=[gl.Scatter(x_values_fit, y_values_fit), gl.Curve.from_function(
+        #         lambda x: b * x**m,
+        #         *fit_bounds,
+        #         line_width=2,
+        #     )],
+        #     title=f"$m={m:.3f}, b={b:.3f}$",
+        # ).show()
 
     parameters = np.array(parameters)
     m, b = parameters.mean(axis=0)
-    dm, db = parameters.std(axis=0)     # uncertainties on the m and b parameters
+    dm, db = parameters.std(axis=0)  # uncertainties on the m and b parameters
+    # print(m, dm, b, db)
     slope = ufloat(m, dm)
     fit = gl.Curve.from_function(
-        lambda x: m*x + b,
+        lambda x: b * x**m,
         *fit_bounds,
         color="red",
         label=f"Slope : {slope:.1u}".replace("+/-", " ± "),
-        line_width=1,
-        number_of_points=2
+        line_width=2,
     )
-    y_fit_errors = db + np.array(fit_bounds)*dm
-    fit.add_error_curves(
-        y_error=y_fit_errors,
-        error_curves_line_style=""
-    )
+    # max_error_curve = gl.Curve.from_function(lambda x: (b - db) * x**(m + dm), *fit_bounds, line_width=5)
+    # min_error_curve = gl.Curve.from_function(lambda x: (b - db) * x**(m - dm), *fit_bounds, line_width=0)
+    # max_error_curve.fill_between_other_curve = min_error_curve
+    # max_error_curve.fill_between_bounds = fit_bounds
+    # max_error_curve.fill_between_color = "red"
 
-    fig = gl.SmartFigure(x_lim=(0,1.35), y_lim=(-0.2,0.5), elements=[scatter, fit])
+    fig = gl.SmartFigure(elements=[scatter, fit], log_scale_x=True, log_scale_y=True)
     fig.set_visual_params(use_latex=True, font_family="serif")
     return fig

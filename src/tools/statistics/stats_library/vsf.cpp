@@ -1,12 +1,8 @@
 #include <omp.h>
 
 #include "vsf.h"
-// #include "stats.h"
-// #include "time.h"
 
 using namespace std;
-
-// Time current_time;
 
 /**
  * \brief Calculates the nth order structure function of two-dimensional data.
@@ -47,8 +43,10 @@ vector_2d structure_function(const vector_2d& input_array, const int order) {
 
             double mean_val = mean(pow_values);
             double std_val = standard_deviation(pow_values);
-            double structure = mean_val / variance_val;
-            double structure_uncertainty = std_val / (variance_val * sqrt(N - 1));  // sample standard error
+            // double structure = mean_val / variance_val;
+            double structure = mean_val;
+            // double structure_uncertainty = std_val / (variance_val * sqrt(N - 1));  // sample standard error
+            double structure_uncertainty = std_val / (sqrt(N - 1));  // sample standard error
 
             // Store result in thread-local buffer
             local_output.push_back({dist, structure, structure_uncertainty});

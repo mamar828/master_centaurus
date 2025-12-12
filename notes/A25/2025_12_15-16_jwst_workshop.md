@@ -7,3 +7,7 @@
 - We could get the temperature of the stars from the depth of the CO band heads.
 ---
 - Loki only gives us the total SNR fits, not per component.
+## VSFs
+- I used a normalization by the variance, but this doesn't affect the slope of the VSF. It just changes the y-axis scaling.
+## Questions
+-  Why do we take $z=0.0099$ when the proposal uses $z=0.0104$?

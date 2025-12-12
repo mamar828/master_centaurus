@@ -16,6 +16,6 @@ PYBIND11_MODULE(stats_library, m) {
           "Compute the n-th order structure function of a two-dimensional array.");
 }
 
-// MAC :    clang++ -std=c++17 -shared -undefined dynamic_lookup -I./pybind11/include/ `python3.12 -m pybind11 --includes` vsf.cpp stats.cpp tools.cpp time.cpp pybind11.cpp -o stats_library.so `python3.12-config --ldflags` -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
-// LINUX :  g++ -std=c++17 -shared -fPIC -I./pybind11/include/ `python3.12 -m pybind11 --includes` vsf.cpp stats.cpp tools.cpp time.cpp pybind11.cpp -o stats_library.so `python3.12-config --ldflags` -fopenmp -lm
-// C++:     clang++ -std=c++17 vsf.cpp stats.cpp tools.cpp time.cpp -o test -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
+// MAC :    clang++ -std=c++17 -shared -undefined dynamic_lookup -I./pybind11/include/ `python3.12 -m pybind11 --includes` vsf.cpp stats.cpp tools.cpp pybind11.cpp -o stats_library.so `python3.12-config --ldflags` -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
+// LINUX :  g++ -std=c++17 -shared -fPIC -I./pybind11/include/ `python3.12 -m pybind11 --includes` vsf.cpp stats.cpp tools.cpp pybind11.cpp -o stats_library.so `python3.12-config --ldflags` -fopenmp -lm
+// C++:     clang++ -std=c++17 vsf.cpp stats.cpp tools.cpp -o test -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
