@@ -4,6 +4,7 @@
 *.gz
 *.dll
 *.dat
+*.so
 
 # Exclude these file prefixes
 __*

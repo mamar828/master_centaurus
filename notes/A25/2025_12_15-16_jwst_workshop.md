@@ -5,3 +5,5 @@
   - The absorption feature at 1.8 microns seems to be in that spectrum.
   - The feature at 1.845 microns is in a region of the spectrum where there is nothing. We didn't see it in another spectrum he showed me.
 - We could get the temperature of the stars from the depth of the CO band heads.
+---
+- Loki only gives us the total SNR fits, not per component.
