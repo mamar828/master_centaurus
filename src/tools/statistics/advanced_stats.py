@@ -101,7 +101,7 @@ def get_fitted_structure_function_figure(
         lambda x: b * x**m,
         *fit_bounds,
         color="red",
-        label=f"Slope : {slope:.1u}".replace("+/-", " ± "),
+        label=f"Slope: {slope:.1u}".replace("+/-", " ± "),
         line_width=2,
     )
     # max_error_curve = gl.Curve.from_function(lambda x: (b - db) * x**(m + dm), *fit_bounds, line_width=5)
