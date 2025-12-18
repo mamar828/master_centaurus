@@ -20,3 +20,5 @@ tests.*
 test.*
 t.*
 build
+notes
+notes.md
