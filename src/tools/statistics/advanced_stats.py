@@ -4,8 +4,7 @@ from scipy.optimize import curve_fit
 from copy import deepcopy
 from uncertainties import ufloat
 
-from src.tools.statistics.stats_library.stats_library import str_func_cpp
-from src.tools.statistics.split_normal import SplitNormal
+from src.tools.statistics.stats_library.build.stats_library import str_func_cpp
 
 
 np_sort = lambda arr: arr[np.argsort(arr[:,0])]
@@ -80,22 +79,10 @@ def get_fitted_structure_function_figure(
             p0=[0.1, 0.1],
             maxfev=100000
         )[0])
-        # m, b = parameters[-1]
-        # fig = gl.SmartFigure(
-        #     x_lim=(0.9*21.4, 20*21.4),
-        #     y_lim=(100, 360),
-        #     elements=[gl.Scatter(x_values_fit, y_values_fit), gl.Curve.from_function(
-        #         lambda x: b * x**m,
-        #         *fit_bounds,
-        #         line_width=2,
-        #     )],
-        #     title=f"$m={m:.3f}, b={b:.3f}$",
-        # ).show()
 
     parameters = np.array(parameters)
     m, b = parameters.mean(axis=0)
     dm, db = parameters.std(axis=0)  # uncertainties on the m and b parameters
-    # print(m, dm, b, db)
     slope = ufloat(m, dm)
     fit = gl.Curve.from_function(
         lambda x: b * x**m,
@@ -104,11 +91,6 @@ def get_fitted_structure_function_figure(
         label=f"Slope: {slope:.1u}".replace("+/-", " ± "),
         line_width=2,
     )
-    # max_error_curve = gl.Curve.from_function(lambda x: (b - db) * x**(m + dm), *fit_bounds, line_width=5)
-    # min_error_curve = gl.Curve.from_function(lambda x: (b - db) * x**(m - dm), *fit_bounds, line_width=0)
-    # max_error_curve.fill_between_other_curve = min_error_curve
-    # max_error_curve.fill_between_bounds = fit_bounds
-    # max_error_curve.fill_between_color = "red"
 
     fig = gl.SmartFigure(elements=[scatter, fit], log_scale_x=True, log_scale_y=True)
     fig.set_visual_params(use_latex=True, font_family="serif")

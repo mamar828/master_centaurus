@@ -34,7 +34,7 @@ fig = get_fitted_structure_function_figure(str_func, (20, 150)).copy_with(
     y_label=r"$\left<\left|\delta v\right|\right>$ [km s$^{-1}$]",
 )
 fig[0][0].label = "VSF for S(1)"
-# fig.show()
+fig.show()
 # fig.save("figures/tests/structure_functions/S3/parsecs.pdf")
 
 # ganguly = gl.Scatter(*(np.loadtxt("data/ganguly_2023_inner.csv", delimiter=",", skiprows=1) * np.array([1000, 1])).T,
