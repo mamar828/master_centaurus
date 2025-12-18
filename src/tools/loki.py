@@ -55,6 +55,7 @@ def get_loki_fit_figure(
     model_filename: str,
     spaxel_coordinates: tuple[int, int],
     version: int = 2,
+    dq_spaxel_coordinates: tuple[int, int] | None = None,
 ) -> gl.SmartFigure:
     """
     Gives a figure showing the Loki fit for a given spaxel using the specified model file.
@@ -64,14 +65,18 @@ def get_loki_fit_figure(
     model_filename : str
         The path to the Loki model FITS file.
     spaxel_coordinates : tuple[int, int]
-        The (x, y) coordinates of the spaxel to visualize.
+        The (y, x) coordinates of the spaxel to visualize.
 
         .. note::
-            To be consistent with Loki's output, the coordinates should start at (1, 1) for the bottom-left spaxel and
-            be ordered as (x, y).
+            To be consistent with Loki's output, the user may use the `FitsCoords` class to specify coordinates in
+            (x, y) format and starting at (1, 1).
     version : int, default=2
         The iteration version of the results used. 2 is for the late october version and 3 is for the december version
         with OQBr tied. 1 is not implemented.
+    dq_spaxel_coordinates : tuple[int, int] | None, default=None
+        The (y, x) coordinates of the data quality (DQ) mask to use to include grey regions showing DO_NOT_USE pixels.
+        This parameter is only needed if a spaxel from a n x 1 x 1 cube is plotted. If None, the dq coordinates are
+        assumed to be the same as the spaxel_coordinates, which is the case when plotting spaxels from a complete cube.
 
     Returns
     -------
@@ -117,6 +122,31 @@ def get_loki_fit_figure(
     name_texts = [gl.Text(line, 0.5, name, font_size=8) for line, name in zip(lines, names)]
     line_vlines = gl.Vlines(lines, colors="gray", line_styles="dashed", line_widths=1)
 
+    """
+    # Building the data quality mask
+    if dq_spaxel_coordinates is None:
+        dq_spaxel_coordinates = spaxel_coordinates
+    dq_pixels = fits_open("data/f170lp_g235h-f170lp_s3d_choiclip1_2_wicked.fits")[3].data[:, *dq_spaxel_coordinates]
+    good_pixels_mask = (dq_pixels == 0).astype(int)
+    # bad_region_edges = np.diff(good_pixels_mask)
+
+    padded = np.pad(good_pixels_mask, (1, 1), constant_values=0)
+    # Find transitions: 0->1 and 1->0
+    diff = np.diff(padded)
+    starts = np.where(diff == 1)[0]
+    ends = np.where(diff == -1)[0]
+    starts = wavelength_arange[starts]
+    ends = wavelength_arange[ends]
+    bad_boxes = [gl.Polygon([(s, 0), (e, 0), (e, 1), (s, 1)]) for s, e in zip(starts, ends)]
+
+    # for start, end in zip(np.where(bad_region_edges == -1)[0], np.where(bad_region_edges == 1)[0]):
+    #     line_vlines.add_vline(wavelength_arange[start], color="lightgray", line_style="solid", line_width=6,
+    #                           y_min=0, y_max=1, coordinate_system="axis")
+
+    # np.savetxt("dq_mask.txt", dq_mask.astype(int))
+    # raise
+    """
+
     data_curve = gl.Curve(wavelength_arange, data[:, *spaxel_coordinates],
                           label="data", color="black")
     model_curve = gl.Curve(wavelength_arange, total_model[:, *spaxel_coordinates],
@@ -132,7 +162,7 @@ def get_loki_fit_figure(
         sub_y_labels=[None, r"$\nu/_\nu$ [erg s$^{-1}$ cm$^{-2}$ sr$^{-1}$]", None],
         elements=[
             name_texts,
-            [data_curve, model_curve, continuum_curve, line_vlines],
+            [data_curve, model_curve, continuum_curve, line_vlines],#, *bad_boxes],
             [error_curve, line_vlines],
         ],
         x_lim=(wavelength_arange.min(), wavelength_arange.max()),
