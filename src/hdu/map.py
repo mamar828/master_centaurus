@@ -43,14 +43,14 @@ class Map(FitsObject, MathematicalObject):
         header : Header, default=SilentNone()
             Header of the Map.
         """
-        if isinstance(uncertainties, Header):
+        if isinstance(uncertainties, fits.Header):
             raise TypeError(
                 f"{C.RED}Uncertainties must be an Array2D object, not a Header.{C.OFF}"
             )
 
         self.data = Array2D(data)
         self.uncertainties = Array2D(uncertainties) if not type(uncertainties) == SilentNone else uncertainties
-        self.header = header
+        self.header = Header(header)
 
     def __add__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
