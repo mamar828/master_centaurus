@@ -6,7 +6,7 @@ from astropy.constants import c as light_speed
 from src.tools.miscellaneous import get_pdf_image_as_array
 
 
-def get_loki_line_pdfs_figure(
+def get_loki_grid_pdfs_figure(
     lines: list[str],
     folder_name: str = "output_NGC4696_G235H_F170LP_full_model",
 ) -> gl.SmartFigure:
