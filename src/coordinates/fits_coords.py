@@ -30,6 +30,9 @@ class FitsCoords:
             Coordinates to initialize the object with. These are given in the same order as in fits files and follow
             one-based indexing.
         """
+        for i, c in enumerate(coordinates):
+            if not isinstance(c, (int, float)):
+                raise TypeError(f"Each given coordinate must be int or float, got {type(c).__name__}.")
         self.data = list(coordinates)
 
     def __len__(self):
@@ -53,6 +56,27 @@ class FitsCoords:
 
     def __str__(self):
         return f"FitsCoords({', '.join(map(str, self.data))})"
+
+    @property
+    def x(self) -> int | float:
+        if len(self) > 0:
+            return self.data[0]
+        else:
+            raise IndexError(f"FitsCoords only has no coordinates.")
+
+    @property
+    def y(self) -> int | float:
+        if len(self) > 1:
+            return self.data[1]
+        else:
+            raise IndexError(f"FitsCoords only has {len(self)} coordinate.")
+
+    @property
+    def z(self) -> int | float:
+        if len(self) > 2:
+            return self.data[2]
+        else:
+            raise IndexError(f"FitsCoords only has {len(self)} coordinate(s).")
 
     @classmethod
     def from_python(cls, *coordinates: tuple[int]) -> FitsCoords:
