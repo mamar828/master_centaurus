@@ -118,6 +118,20 @@ class Header(fits.Header):
                 # Remove the old key if it doesn't exist in the new WCS
                 new_header.remove(old_key, ignore_missing=True)
 
+        # Handle PC and CD matrix elements that may not appear in wcs.to_header()
+        # When dimensions change (e.g., 3D -> 2D), we need to manually remove matrix elements referencing removed axes
+        old_naxis = self["NAXIS"]
+        new_naxis_value = wcs.naxis
+
+        if old_naxis != new_naxis_value:
+            # Remove PC and CD matrix elements for removed axes
+            for i in range(1, old_naxis + 1):
+                for j in range(1, old_naxis + 1):
+                    # Remove PC elements that involve axes beyond the new dimensions
+                    if i > new_naxis_value or j > new_naxis_value:
+                        new_header.remove(f"PC{i}_{j}", ignore_missing=True)
+                        new_header.remove(f"CD{i}_{j}", ignore_missing=True)
+
         # Also update non-wcs keywords
         new_naxis = wcs._naxis
         for h_axis in range(1, new_header["NAXIS"] + 1):
