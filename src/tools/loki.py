@@ -38,7 +38,7 @@ def get_loki_grid_pdfs_figure(
             ))
             subtitles.append(f"{line} {suffix.lstrip("1.")}")
 
-    num_rows = len(hms) // 3
+    num_rows = len(lines)
     fig = gl.SmartFigure(
         num_rows,
         3,
@@ -55,6 +55,7 @@ def get_loki_fit_figure(
     model_filename: str,
     spaxel_coordinates: tuple[int, int],
     version: int = 2,
+    data_cube_filename: str = None,
 ) -> gl.SmartFigure:
     """
     Gives a figure showing the Loki fit for a given spaxel using the specified model file.
@@ -70,8 +71,10 @@ def get_loki_fit_figure(
             To be consistent with Loki's output, the user may use the `FitsCoords` class to specify coordinates in
             (x, y) format and starting at (1, 1).
     version : int, default=2
-        The iteration version of the results used. 2 is for the late october version and 3 is for the december version
-        with OQBr tied. 1 is not implemented.
+        The iteration version of the results used. 2 is for the late october version and 3 is for the december/january
+        versions with OQBr tied. 1 is not implemented.
+    data_cube_filename : str, optional
+        If provided, the data cube used to fit the data. This allows to plot the excluded regions as shaded regions.
 
     Returns
     -------
@@ -126,13 +129,28 @@ def get_loki_fit_figure(
     error_curve = data_curve - model_curve
     error_curve.label = "data - model"
 
+    # Building the shaded regions
+    if data_cube_filename is not None:
+        data_cube_hdu = fits_open(data_cube_filename)
+        header = data_cube_hdu[1].header
+        wave = header["CRVAL3"] + header["CDELT3"] * np.arange(0, header["NAXIS3"])
+        dq_values = data_cube_hdu[3].data[:, *spaxel_coordinates]
+        dq_mask = (dq_values != 0).astype(int)
+        diff = np.diff(dq_mask)
+        bad_starts = np.where(diff > 0)[0] + 1
+        bad_ends = np.where(diff < 0)[0] + 1
+        bad_regions = [
+            gl.Rectangle(wave[s], -1, wave[e] - wave[s], 2, fill=True, fill_color="gray", fill_alpha=0.5)
+            for s, e in zip(bad_starts, bad_ends)
+        ]
+
     fig = gl.SmartFigure(
         3,
         x_label=r"$\lambda_\mathrm{rest}$ [$\mu$m]",
         sub_y_labels=[None, r"$\nu/_\nu$ [erg s$^{-1}$ cm$^{-2}$ sr$^{-1}$]", None],
         elements=[
             name_texts,
-            [data_curve, model_curve, continuum_curve, line_vlines],#, *bad_boxes],
+            [data_curve, model_curve, continuum_curve, line_vlines, *bad_regions],
             [error_curve, line_vlines],
         ],
         x_lim=(wavelength_arange.min(), wavelength_arange.max()),
