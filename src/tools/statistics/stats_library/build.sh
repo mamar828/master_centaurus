@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e  # Exit immediately if any command fails
 
 # Build script for stats_library pybind11 module
 
