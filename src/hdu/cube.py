@@ -3,7 +3,7 @@ import numpy as np
 import scipy as sp
 import pyregion
 from astropy.io import fits
-from typing import Self, Any
+from typing import Self, Any, Literal
 from colorist import BrightColor as C
 from logging import warning
 
@@ -258,16 +258,31 @@ class Cube(FitsObject):
         """
         return Array2D(array_3d.T.reshape(array_3d.shape[2] * array_3d.shape[1], array_3d.shape[0]))
 
-    def get_deep_frame(self) -> Map:
+    def get_deep_frame(self, nan_policy: Literal["omit", "propagate"] = "omit") -> Map:
         """
         Gives a Map created from summing the first axis of the Cube. Nans are ignored in the process.
+
+        Parameters
+        ----------
+        nan_policy : Literal["omit", "propagate"], default="propagate"
+            Policy for handling nans in the summation process. "omit" ignores nans (calculates the deep frame using
+            np.nansum) whereas "propagate" results in nans in the output if any nan is present in the summed values
+            (calculates the deep frame using np.sum).
 
         Returns
         -------
         Map
             Flattened Cube by summing its first axis.
         """
-        return Map(
-            data=np.nansum(self.data, axis=0),
-            header=self.header.celestial
-        )
+        if nan_policy == "omit":
+            return Map(
+                data=np.nansum(self.data, axis=0),
+                header=self.header.celestial
+            )
+        elif nan_policy == "propagate":
+            return Map(
+                data=np.sum(self.data, axis=0),
+                header=self.header.celestial
+            )
+        else:
+            raise ValueError(f"{C.RED}nan_policy must be either 'omit' or 'propagate'.{C.OFF}")

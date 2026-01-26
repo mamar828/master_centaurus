@@ -465,14 +465,14 @@ class Map(FitsObject, MathematicalObject):
 
     def rotate_field(self) -> Heatmap:
         """
-        Rotates a NIRSpec Map to align it with the plot axes. The Map is rotated by 47 degrees clockwise.
+        Rotates a NIRSpec Map to align it with the plot axes. The Map is rotated by 48 degrees clockwise.
 
         Returns
         -------
         Heatmap
             A Heatmap of the rotated Map aligned with the plot x/y axes.
         """
-        magic_angle = -47  # clockwise rotation (in degrees)
+        magic_angle = -48  # clockwise rotation (in degrees)
         n, m = self.shape
         y, x = np.mgrid[:n+1, :m+1]  # grids of each cell x/y corners
 
