@@ -462,26 +462,3 @@ class Map(FitsObject, MathematicalObject):
             uncertainties_reprojection,
             header=header.copy()
         )
-
-    def rotate_field(self) -> Heatmap:
-        """
-        Rotates a NIRSpec Map to align it with the plot axes. The Map is rotated by 48 degrees clockwise.
-
-        Returns
-        -------
-        Heatmap
-            A Heatmap of the rotated Map aligned with the plot x/y axes.
-        """
-        magic_angle = -48  # clockwise rotation (in degrees)
-        n, m = self.shape
-        y, x = np.mgrid[:n+1, :m+1]  # grids of each cell x/y corners
-
-        # Rotation
-        theta = np.deg2rad(magic_angle)
-        x_rot = x * np.cos(theta) - y * np.sin(theta)
-        y_rot = x * np.sin(theta) + y * np.cos(theta)
-
-        hm = self.data.plot
-        hm._x_coordinates = x_rot
-        hm._y_coordinates = y_rot
-        return hm
