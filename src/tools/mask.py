@@ -121,14 +121,14 @@ class Mask:
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
 
-    def polygon(self, vertices: list[tuple[float, float]]) -> np.ndarray:
+    def polygon(self, vertices: np.ndarray) -> np.ndarray:
         """
         Creates a polygon mask.
 
         Parameters
         ----------
-        vertices : list[tuple[float, float]]
-            Vertices of the polygon. Each element is a vertex and is defined by its (x, y) coordinates. The generated
+        vertices : np.ndarray
+            Vertices of the polygon. Each sub-array represents the (x, y) coordinates of a vertice. The generated
             polygon links the given vertices in the same order as given in the list and links the last vertice with the
             first.
 
@@ -137,7 +137,7 @@ class Mask:
         np.ndarray
             Generated polygonal mask.
         """
-        region_id = f"image;polygon{sum(vertices, ())}"
+        region_id = f"image;polygon{tuple(vertices.flatten())}"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
 
