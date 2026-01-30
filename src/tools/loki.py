@@ -83,26 +83,26 @@ def get_loki_fit_figure(
     """
     if version not in [2, 3]:
         raise ValueError("Only versions 2 and 3 are supported.")
-    hdu = fits_open(model_filename)
-    data = hdu[1].data
-    wavelength_arange = hdu[-1].data[0][0].flatten() / (1 + 0.0099)
+    hdu_list = fits_open(model_filename)
+    data = hdu_list[1].data
+    wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + 0.0099)
 
     # Building the stellar continuum
-    stellar_extinction = hdu[4].data
+    stellar_extinction = hdu_list[4].data
     if version == 2:
-        raw_stellar_continuum = hdu[7].data
+        raw_stellar_continuum = hdu_list[7].data
         gas_lines_range = range(8, 28)
     else:
-        raw_stellar_continuum = hdu[8].data
-        polynomials_multiplicative = hdu[7].data
+        raw_stellar_continuum = hdu_list[8].data
+        polynomials_multiplicative = hdu_list[7].data
         raw_stellar_continuum *= polynomials_multiplicative
         gas_lines_range = range(9, 29)
     stellar_continuum = raw_stellar_continuum * stellar_extinction
 
     # Building the gas emission lines
-    gas_extinction = hdu[5].data
-    silicates_extinction = hdu[6].data
-    gas_lines = np.sum([hdu[i].data for i in gas_lines_range], axis=0) * gas_extinction * silicates_extinction
+    gas_extinction = hdu_list[5].data
+    silicates_extinction = hdu_list[6].data
+    gas_lines = np.sum([hdu_list[i].data for i in gas_lines_range], axis=0) * gas_extinction * silicates_extinction
 
     total_model = stellar_continuum + gas_lines
 
@@ -131,10 +131,10 @@ def get_loki_fit_figure(
 
     # Building the shaded regions
     if data_cube_filename is not None:
-        data_cube_hdu = fits_open(data_cube_filename)
-        header = data_cube_hdu[1].header
+        data_cube_hdu_list = fits_open(data_cube_filename)
+        header = data_cube_hdu_list[1].header
         wave = header["CRVAL3"] + header["CDELT3"] * np.arange(0, header["NAXIS3"])
-        dq_values = data_cube_hdu[3].data[:, *spaxel_coordinates]
+        dq_values = data_cube_hdu_list[3].data[:, *spaxel_coordinates]
         dq_mask = (dq_values != 0).astype(int)
         diff = np.diff(dq_mask)
         bad_starts = np.where(diff > 0)[0] + 1
