@@ -8,6 +8,11 @@ from pdf2image import convert_from_path
 def silence_function(func):
     """
     Decorates verbose functions to silence their terminal output.
+
+    Example
+    -------
+    Silence a noisy polyfit call:
+    >>> silence_function(lambda: np.polyfit(x, y, 1))()
     """
     def inner_func(*args, **kwargs):
         with open(os.devnull, "w") as outer_space, redirect_stdout(outer_space), warnings.catch_warnings():

@@ -50,7 +50,7 @@ class Map(FitsObject, MathematicalObject):
 
         self.data = Array2D(data)
         self.uncertainties = Array2D(uncertainties) if not type(uncertainties) == SilentNone else uncertainties
-        self.header = Header(header)
+        self.header = Header(header) if not type(header) == SilentNone else header
 
     def __add__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
