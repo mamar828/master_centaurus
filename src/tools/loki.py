@@ -6,6 +6,34 @@ from astropy.constants import c as light_speed
 from src.tools.miscellaneous import get_pdf_image_as_array
 
 
+def get_subtracted_stellar_continuum(results_version: str = "january") -> np.ndarray:
+    """
+    Outputs the data minus the stellar continuum cube based on the specified Loki results version.
+
+    Parameters
+    ----------
+    results_version : str
+        The version of the Loki results to use for the stellar continuum subtraction. Options are "january".
+
+    Returns
+    -------
+    np.ndarray
+        A data cube giving the stellar continuum at each wavelength for each spaxel.
+    """
+    loki_models = fits_open(
+        "data/loki/output_NGC4696_G235H_F170LP_full_OQBr_tied/NGC4696_G235H_F170LP_full_OQBr_tied_full_model.fits"
+    )
+
+    # Building the stellar continuum
+    stellar_extinction = loki_models[4].data
+    raw_stellar_continuum = loki_models[8].data
+    polynomials_multiplicative = loki_models[7].data
+    raw_stellar_continuum *= polynomials_multiplicative
+    stellar_continuum = raw_stellar_continuum * stellar_extinction
+
+    data = loki_models[1].data
+    return data - stellar_continuum
+
 def get_loki_grid_pdfs_figure(
     lines: list[str],
     folder_name: str = "output_NGC4696_G235H_F170LP_full_model",
@@ -85,7 +113,8 @@ def get_loki_fit_figure(
         raise ValueError("Only versions 2 and 3 are supported.")
     hdu_list = fits_open(model_filename)
     data = hdu_list[1].data
-    wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + 0.0099)
+    # wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + 0.0099)
+    wavelength_arange = hdu_list[-1].data[0][0].flatten()
 
     # Building the stellar continuum
     stellar_extinction = hdu_list[4].data
@@ -130,19 +159,19 @@ def get_loki_fit_figure(
     error_curve.label = "data - model"
 
     # Building the shaded regions
-    if data_cube_filename is not None:
-        data_cube_hdu_list = fits_open(data_cube_filename)
-        header = data_cube_hdu_list[1].header
-        wave = header["CRVAL3"] + header["CDELT3"] * np.arange(0, header["NAXIS3"])
-        dq_values = data_cube_hdu_list[3].data[:, *spaxel_coordinates]
-        dq_mask = (dq_values != 0).astype(int)
-        diff = np.diff(dq_mask)
-        bad_starts = np.where(diff > 0)[0] + 1
-        bad_ends = np.where(diff < 0)[0] + 1
-        bad_regions = [
-            gl.Rectangle(wave[s], -1, wave[e] - wave[s], 2, fill=True, fill_color="gray", fill_alpha=0.5)
-            for s, e in zip(bad_starts, bad_ends)
-        ]
+    # if data_cube_filename is not None:
+    #     data_cube_hdu_list = fits_open(data_cube_filename)
+    #     header = data_cube_hdu_list[1].header
+    #     wave = header["CRVAL3"] + header["CDELT3"] * np.arange(0, header["NAXIS3"])
+    #     dq_values = data_cube_hdu_list[3].data[:, *spaxel_coordinates]
+    #     dq_mask = (dq_values != 0).astype(int)
+    #     diff = np.diff(dq_mask)
+    #     bad_starts = np.where(diff > 0)[0] + 1
+    #     bad_ends = np.where(diff < 0)[0] + 1
+    #     bad_regions = [
+    #         gl.Rectangle(wave[s], -1, wave[e] - wave[s], 2, fill=True, fill_color="gray", fill_alpha=0.5)
+    #         for s, e in zip(bad_starts, bad_ends)
+    #     ]
 
     fig = gl.SmartFigure(
         3,
@@ -150,7 +179,7 @@ def get_loki_fit_figure(
         sub_y_labels=[None, r"$\nu/_\nu$ [erg s$^{-1}$ cm$^{-2}$ sr$^{-1}$]", None],
         elements=[
             name_texts,
-            [data_curve, model_curve, continuum_curve, line_vlines, *bad_regions],
+            [data_curve, model_curve, continuum_curve, line_vlines],# *bad_regions],
             [error_curve, line_vlines],
         ],
         x_lim=(wavelength_arange.min(), wavelength_arange.max()),

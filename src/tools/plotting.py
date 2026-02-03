@@ -1,8 +1,10 @@
 import numpy as np
 import graphinglib as gl
 import cv2
+import pvextractor
 from astropy.convolution import convolve, Gaussian2DKernel
-
+from astropy.wcs import WCS
+from matplotlib.colors import ListedColormap
 
 ROTATION_ANGLE_NIRSPEC = -48  # degrees
 
@@ -92,3 +94,97 @@ def get_rotated_heatmap(heatmap: gl.Heatmap) -> gl.Heatmap:
     hm_rot._y_coordinates = x * np.sin(theta) + y * np.cos(theta)
 
     return hm_rot
+
+def make_pv_diagram(
+    data_cube: np.ndarray,
+    wcs: WCS,
+    aperture: list[tuple[float, float]] | str,
+    width: float = 1.0,
+    spacing: float = 1.0,
+    noise_map: np.ndarray | None = None,
+    cmap_upper_level: float | None = None,
+) -> tuple[gl.Polygon, list[gl.Polygon], gl.Heatmap, gl.Contour, gl.Contour]:
+    """
+    Creates a PV diagram from the given aperture path. This function uses the `pvextractor` library to extract the PV
+    slice. This library automatically computes the average in each bin along the aperture and weights the pixels by
+    their overlap with the aperture.
+
+    Parameters
+    ----------
+    data_cube : np.ndarray
+        The data cube from which to extract the PV diagram.
+    wcs : astropy.wcs.WCS
+        The WCS associated with the data cube. Note that it may be needed to provide a WCS of the raw cube rather than
+        the reduced one, as pvextractor tends to be very picky with WCS objects.
+    aperture : list[tuple[float, float]] | str
+        This can be either:
+        - List of (x, y) tuples defining the aperture path. Currently, only lists with two elements are supported.
+        - String path of a DS9 region file of a line. Polygonal regions are not supported. Also note that the line
+        region must be saved using either the 'galactic', 'fk5', 'fk4' or 'icrs' coordinate system.
+    width : float, default=1.0
+        Width of the aperture in pixels.
+    spacing : float, default=1.0
+        Spacing between samples along the aperture in pixels. For example, a spacing of 2 will create "bins" of 2 pixels
+        along the aperture and average the data in each bin.
+    noise_map : np.ndarray, optional
+        If provided, the noise map associated with the data cube. This is used to compute the bounds of the PV contours
+        and exclude statistically insignificant features. The weighted mean of noise_map inside the aperture is used as
+        an estimation of the noise level, and the lower level is set to 3 sigma.
+    cmap_upper_level : float, optional
+        If provided, the upper level for the PV contours' color map. If not provided, the maximum value in the PV data
+        is used.
+
+    Returns
+    -------
+    tuple[gl.Polygon, list[gl.Polygon] gl.Heatmap, gl.Contour, gl.Contour]
+        A tuple containing the following elements:
+        - Aperture polygon (gl.Polygon)
+        - List of bin polygons, showing the region in which each bin is performed (list[gl.Polygon])
+        - PV heatmap, constructed from pvextractor output (gl.Heatmap)
+        - PV filled contour showing the same data as the PV heatmap (gl.Contour)
+        - PV contour showing only the exterior lines of the filled contour (gl.Contour)
+    """
+    if isinstance(aperture, str):
+        path = pvextractor.paths_from_regfile(aperture)[0]
+        path.width = width
+    else:
+        path = pvextractor.Path(aperture, width=width)
+
+    pv_data = pvextractor.extract_pv_slice(data_cube, path, wcs, spacing).data
+
+    # Polygon for the aperture
+    path_xy = np.array(path.get_xy(wcs=wcs.celestial))
+    angle = np.arctan2(*(path_xy[1] - path_xy[0])[::-1])
+    upper_vertices = path_xy + path.width / 2 * np.array([np.sin(angle), -np.cos(angle)])
+    lower_vertices = path_xy - path.width / 2 * np.array([np.sin(angle), -np.cos(angle)])
+    vertices = np.vstack([upper_vertices, lower_vertices[::-1]])
+    aperture_poly = gl.Polygon(vertices, line_width=2, fill=False)
+
+    # Polygons for bins
+    patches = path.to_patches(spacing, wcs=wcs)
+    polygon_vertices = [p.get_xy() for p in patches]
+    bin_polygons = [gl.Polygon(v, line_width=0.5, fill=False, edge_color="k") for v in polygon_vertices]
+
+    # Heatmap
+    pv_hm = gl.Heatmap(pv_data, origin_position="lower")
+
+    # Find 3 sigma level from noise map if provided
+    if noise_map is not None:
+        pv_noise = pvextractor.extract_pv_slice(noise_map[None,:,:], path, wcs, spacing).data
+        noise_level = np.nanmean(pv_noise)
+        lower_level = 3 * noise_level
+    else:
+        lower_level = None
+
+    if cmap_upper_level is None:
+        cmap_upper_level = np.nanmax(pv_data)
+
+    # Contours
+    meshes = np.meshgrid(np.arange(pv_data.shape[1]), np.arange(pv_data.shape[0]))
+    pv_cont = gl.Contour(*meshes, pv_data, number_of_levels=9, color_map="Reds", show_color_bar=False,
+                         color_map_range=(lower_level, cmap_upper_level))
+    pv_cont_cont = pv_cont.copy()
+    pv_cont_cont.color_map = ListedColormap("k")
+    pv_cont_cont.filled = False
+
+    return aperture_poly, bin_polygons, pv_hm, pv_cont, pv_cont_cont
