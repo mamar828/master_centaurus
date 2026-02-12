@@ -2,24 +2,26 @@ import graphinglib as gl
 import numpy as np
 from astropy.io.fits import open as fits_open
 from astropy.constants import c as light_speed
+from typing import Literal
 
 from src.tools.miscellaneous import get_pdf_image_as_array
 
 
-def get_subtracted_stellar_continuum(results_version: str = "january") -> np.ndarray:
+def get_subtracted_stellar_continuum(results_version: Literal["january"] = "january") -> np.ndarray:
     """
     Outputs the data minus the stellar continuum cube based on the specified Loki results version.
 
     Parameters
     ----------
-    results_version : str
-        The version of the Loki results to use for the stellar continuum subtraction. Options are "january".
+    results_version : Literal["january"], default="january"
+        The version of the Loki results to use for the stellar continuum subtraction.
 
     Returns
     -------
     np.ndarray
         A data cube giving the stellar continuum at each wavelength for each spaxel.
     """
+    assert results_version == "january", "Only the 'january' version is currently implemented."
     loki_models = fits_open(
         "data/loki/output_NGC4696_G235H_F170LP_full_OQBr_tied/NGC4696_G235H_F170LP_full_OQBr_tied_full_model.fits"
     )
@@ -113,8 +115,7 @@ def get_loki_fit_figure(
         raise ValueError("Only versions 2 and 3 are supported.")
     hdu_list = fits_open(model_filename)
     data = hdu_list[1].data
-    # wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + 0.0099)
-    wavelength_arange = hdu_list[-1].data[0][0].flatten()
+    wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + 0.0099)
 
     # Building the stellar continuum
     stellar_extinction = hdu_list[4].data

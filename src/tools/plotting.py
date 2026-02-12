@@ -102,9 +102,8 @@ def make_pv_diagram(
     aperture: list[tuple[float, float]] | str,
     width: float = 1.0,
     spacing: float = 1.0,
-    noise_map: np.ndarray | None = None,
-    cmap_upper_level: float | None = None,
-) -> tuple[gl.Polygon, list[gl.Polygon], gl.Heatmap, gl.Contour, gl.Contour]:
+    contour_levels: list[float] | None = None,
+) -> tuple[gl.Polygon, list[gl.Polygon], gl.Arrow, gl.Heatmap, gl.Contour, gl.Contour]:
     """
     Creates a PV diagram from the given aperture path. This function uses the `pvextractor` library to extract the PV
     slice. This library automatically computes the average in each bin along the aperture and weights the pixels by
@@ -127,20 +126,16 @@ def make_pv_diagram(
     spacing : float, default=1.0
         Spacing between samples along the aperture in pixels. For example, a spacing of 2 will create "bins" of 2 pixels
         along the aperture and average the data in each bin.
-    noise_map : np.ndarray, optional
-        If provided, the noise map associated with the data cube. This is used to compute the bounds of the PV contours
-        and exclude statistically insignificant features. The weighted mean of noise_map inside the aperture is used as
-        an estimation of the noise level, and the lower level is set to 3 sigma.
-    cmap_upper_level : float, optional
-        If provided, the upper level for the PV contours' color map. If not provided, the maximum value in the PV data
-        is used.
+    contour_levels : list[float], optional
+        If provided, the levels for the PV contours. If not provided, the levels are computed automatically.
 
     Returns
     -------
-    tuple[gl.Polygon, list[gl.Polygon] gl.Heatmap, gl.Contour, gl.Contour]
+    tuple[gl.Polygon, list[gl.Polygon], gl.Arrow, gl.Heatmap, gl.Contour, gl.Contour]
         A tuple containing the following elements:
         - Aperture polygon (gl.Polygon)
         - List of bin polygons, showing the region in which each bin is performed (list[gl.Polygon])
+        - Arrow indicating the direction of the aperture (gl.Arrow)
         - PV heatmap, constructed from pvextractor output (gl.Heatmap)
         - PV filled contour showing the same data as the PV heatmap (gl.Contour)
         - PV contour showing only the exterior lines of the filled contour (gl.Contour)
@@ -159,26 +154,31 @@ def make_pv_diagram(
     upper_vertices = path_xy + path.width / 2 * np.array([np.sin(angle), -np.cos(angle)])
     lower_vertices = path_xy - path.width / 2 * np.array([np.sin(angle), -np.cos(angle)])
     vertices = np.vstack([upper_vertices, lower_vertices[::-1]])
-    aperture_poly = gl.Polygon(vertices, line_width=2, fill=False)
+    aperture_poly = gl.Polygon(vertices, line_width=1.5, fill=False)
 
     # Polygons for bins
     patches = path.to_patches(spacing, wcs=wcs)
     polygon_vertices = [p.get_xy() for p in patches]
     bin_polygons = [gl.Polygon(v, line_width=0.5, fill=False, edge_color="k") for v in polygon_vertices]
 
+    # Arrow to indicate direction on top of aperture
+    arrow_length = 10
+    mid_point = (path_xy[0] + path_xy[-1]) / 2
+    dir_vector = (path_xy[-1] - path_xy[0])
+    dir_vector = dir_vector / np.linalg.norm(dir_vector)
+    perp_vector = np.array([-dir_vector[1], dir_vector[0]])
+    arrow_start = mid_point - arrow_length / 2 * dir_vector + perp_vector * (path.width / 2 + 1.5)
+    arrow_end = arrow_start + dir_vector * arrow_length
+    aperture_arrow = gl.Arrow(
+        [arrow_start[0], arrow_start[1]],
+        [arrow_end[0], arrow_end[1]],
+        width=1.5,
+        color="black",
+        style="->",
+    )
+
     # Heatmap
     pv_hm = gl.Heatmap(pv_data, origin_position="lower")
-
-    # Find 3 sigma level from noise map if provided
-    if noise_map is not None:
-        pv_noise = pvextractor.extract_pv_slice(noise_map[None,:,:], path, wcs, spacing).data
-        noise_level = np.nanmean(pv_noise)
-        lower_level = 3 * noise_level
-    else:
-        lower_level = None
-
-    if cmap_upper_level is None:
-        cmap_upper_level = np.nanmax(pv_data)
 
     # Contours
     meshes = np.meshgrid(np.arange(pv_data.shape[1]), np.arange(pv_data.shape[0]))
@@ -190,4 +190,4 @@ def make_pv_diagram(
         line_widths=0.5,
     )
 
-    return aperture_poly, bin_polygons, pv_hm, pv_cont, pv_cont_cont
+    return aperture_poly, bin_polygons, aperture_arrow, pv_hm, pv_cont, pv_cont_cont
