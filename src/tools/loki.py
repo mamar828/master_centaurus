@@ -8,20 +8,29 @@ from src.tools.miscellaneous import get_pdf_image_as_array
 
 
 def get_subtracted_stellar_continuum(
-    results_version: Literal["january lr", "february lr", "february hr"] = "february lr"
-) -> np.ndarray:
+    results_version: Literal["january lr", "february lr", "february hr"] = "january lr",
+    return_wavelengths: bool = False,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Outputs the data minus the stellar continuum cube based on the specified Loki results version.
 
     Parameters
     ----------
-    results_version : Literal["january lr", "february lr", "february hr"], default="february lr"
+    results_version : Literal["january lr", "february lr", "february hr"], default="january lr"
         The version of the Loki results to use for the stellar continuum subtraction.
+    return_wavelengths : bool, default=False
+        Whether to also return the wavelength array corresponding to the data cube. If True, the function will return a
+        tuple of (subtracted_cube, wavelengths).
 
     Returns
     -------
-    np.ndarray
-        A data cube giving the stellar continuum at each wavelength for each spaxel.
+    np.ndarray | tuple[np.ndarray, np.ndarray]
+        A data cube giving the stellar continuum at each wavelength for each spaxel. If `return_wavelengths` is True,
+        returns a tuple of (subtracted_cube, wavelengths) where `wavelengths` is a 1D array of the wavelength values
+        corresponding to the data cube.
+
+        .. warning::
+            The returned wavelength array is in the observed frame and has not been corrected for redshift.
     """
     match results_version:
         case "january lr":
@@ -44,8 +53,12 @@ def get_subtracted_stellar_continuum(
     raw_stellar_continuum *= polynomials_multiplicative
     stellar_continuum = raw_stellar_continuum * stellar_extinction
 
-    data = loki_models[1].data
-    return data - stellar_continuum
+    subtracted = loki_models[1].data - stellar_continuum
+    if return_wavelengths:
+        wavelength_arange = loki_models[-1].data[0][0].flatten()
+        return subtracted, wavelength_arange
+    else:
+        return subtracted
 
 def get_loki_grid_pdfs_figure(
     lines: list[str],
@@ -122,11 +135,12 @@ def get_loki_fit_figure(
     gl.SmartFigure
         The figure showing the Loki fit for the specified spaxel as well as the data itself.
     """
+    z = 0.0099  # redshift
     if version not in [2, 3]:
         raise ValueError("Only versions 2 and 3 are supported.")
     hdu_list = fits_open(model_filename)
     data = hdu_list[1].data
-    wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + 0.0099)
+    wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + z)
 
     # Building the stellar continuum
     stellar_extinction = hdu_list[4].data
@@ -155,7 +169,7 @@ def get_loki_fit_figure(
 
     # Building the emission line labels and texts
     lines = [2.2235, 2.1218, 2.0338, 1.9576, 1.8920, 1.8358, 1.7880, 1.7480, 1.7147, 2.4756, 2.5001 , 2.52802, 2.55985,
-             2.62688, 2.80251, 3.00387, 1.8745, 2.6259, 2.1661, 1.9451]
+             2.62688, 2.80251, 3.00387, 1.87561, 2.62587, 2.16612, 1.94509]  # from GEMINI
     names = ["S(0)", "S(1)", "S(2)", "S(3)", "S(4)", "S(5)", "S(6)", "S(7)", "S(8)", "Q(6)", "Q(7)", "Q(8)", "Q(9)",
              "O(2)", "O(3)", "O(4)", r"Pa$\alpha$", r"Br$\beta$", r"Br$\gamma$", r"Br$\delta$"]
     name_texts = [gl.Text(line, 0.5, name, font_size=8) for line, name in zip(lines, names)]

@@ -166,7 +166,7 @@ def make_pv_diagram(
     mid_point = (path_xy[0] + path_xy[-1]) / 2
     dir_vector = (path_xy[-1] - path_xy[0])
     dir_vector = dir_vector / np.linalg.norm(dir_vector)
-    perp_vector = np.array([-dir_vector[1], dir_vector[0]])
+    perp_vector = - np.array([-dir_vector[1], dir_vector[0]])
     arrow_start = mid_point - arrow_length / 2 * dir_vector + perp_vector * (path.width / 2 + 1.5)
     arrow_end = arrow_start + dir_vector * arrow_length
     aperture_arrow = gl.Arrow(
@@ -182,12 +182,12 @@ def make_pv_diagram(
 
     # Contours
     meshes = np.meshgrid(np.arange(pv_data.shape[1]), np.arange(pv_data.shape[0]))
-    pv_cont = gl.Contour(pv_data, *meshes, levels=contour_levels, color_map="Reds", show_color_bar=False,
+    pv_cont_filled = gl.Contour(pv_data, *meshes, levels=contour_levels, color_map="Reds", show_color_bar=False,
                          color_map_range=(contour_levels[0], contour_levels[-1]))
-    pv_cont_cont = pv_cont.copy_with(
+    pv_cont_lines = pv_cont_filled.copy_with(
         color_map=ListedColormap("k"),
         filled=False,
         line_widths=0.5,
     )
 
-    return aperture_poly, bin_polygons, aperture_arrow, pv_hm, pv_cont, pv_cont_cont
+    return aperture_poly, bin_polygons, aperture_arrow, pv_hm, pv_cont_filled, pv_cont_lines
