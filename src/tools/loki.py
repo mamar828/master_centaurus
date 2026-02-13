@@ -7,13 +7,15 @@ from typing import Literal
 from src.tools.miscellaneous import get_pdf_image_as_array
 
 
-def get_subtracted_stellar_continuum(results_version: Literal["january"] = "january") -> np.ndarray:
+def get_subtracted_stellar_continuum(
+    results_version: Literal["january lr", "february lr", "february hr"] = "february lr"
+) -> np.ndarray:
     """
     Outputs the data minus the stellar continuum cube based on the specified Loki results version.
 
     Parameters
     ----------
-    results_version : Literal["january"], default="january"
+    results_version : Literal["january lr", "february lr", "february hr"], default="february lr"
         The version of the Loki results to use for the stellar continuum subtraction.
 
     Returns
@@ -21,10 +23,19 @@ def get_subtracted_stellar_continuum(results_version: Literal["january"] = "janu
     np.ndarray
         A data cube giving the stellar continuum at each wavelength for each spaxel.
     """
-    assert results_version == "january", "Only the 'january' version is currently implemented."
-    loki_models = fits_open(
-        "data/loki/output_NGC4696_G235H_F170LP_full_OQBr_tied/NGC4696_G235H_F170LP_full_OQBr_tied_full_model.fits"
-    )
+    match results_version:
+        case "january lr":
+            path = "full_OQBr_tied/NGC4696_G235H_F170LP_full_OQBr_tied"
+        case "february lr":
+            path = "QOBr_tied_global_m1_lores/NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores"
+        case "february hr":
+            path = "QOBr_tied_global_m1_hires/NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires"
+        case _:
+            raise ValueError("Invalid results version. Choose from 'january lr', 'february lr', or 'february hr'.")
+
+    prefix = "data/loki/output_NGC4696_G235H_F170LP_"
+    suffix = "_full_model.fits"
+    loki_models = fits_open(f"{prefix}{path}{suffix}")
 
     # Building the stellar continuum
     stellar_extinction = loki_models[4].data
