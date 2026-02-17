@@ -6,7 +6,7 @@ from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.wcs import WCS
 from matplotlib.colors import ListedColormap
 
-ROTATION_ANGLE_NIRSPEC = -48  # degrees
+ROTATION_ANGLE_NIRSPEC = -48 * np.pi / 180  # rad
 
 def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwargs) -> gl.Contour:
     """
@@ -62,7 +62,7 @@ def get_rotated_contour(contour: gl.Contour) -> gl.Contour:
     gl.Contour
         A new Contour object that is the rotated version of the input.
     """
-    theta = ROTATION_ANGLE_NIRSPEC * np.pi / 180
+    theta = ROTATION_ANGLE_NIRSPEC
     # Add 0.5 to convert from pixel center to edge-based coordinates
     x_mesh_edges, y_mesh_edges = contour.x_mesh + 0.5, contour.y_mesh + 0.5
     cont_rot = contour.copy_with(
@@ -86,7 +86,7 @@ def get_rotated_heatmap(heatmap: gl.Heatmap) -> gl.Heatmap:
     gl.Heatmap
         A new Heatmap object that is the rotated version of the input.
     """
-    theta = ROTATION_ANGLE_NIRSPEC * np.pi / 180
+    theta = ROTATION_ANGLE_NIRSPEC
     n, m = heatmap.image.shape
     y, x = np.mgrid[:n+1, :m+1]  # grids of each cell x/y corners
 
@@ -95,6 +95,81 @@ def get_rotated_heatmap(heatmap: gl.Heatmap) -> gl.Heatmap:
         y_mesh=x * np.sin(theta) + y * np.cos(theta),
     )
     return hm_rot
+
+def get_rotated_polygon(polygon: gl.Polygon) -> gl.Polygon:
+    """
+    Returns a rotated copy of the input Polygon object by -48 degrees around the origin (0, 0). This allows to plot
+    NIRSpec results in a square subplot.
+
+    Parameters
+    ----------
+    polygon : gl.Polygon
+        The original Polygon object to be rotated.
+
+    Returns
+    -------
+    gl.Polygon
+        A new Polygon object that is the rotated version of the input.
+    """
+    theta = ROTATION_ANGLE_NIRSPEC
+    vertices = polygon.vertices + 0.5  # Convert from pixel center to edge-based coordinates
+    rot_vertices = np.empty_like(vertices)
+    rot_vertices[:, 0] = vertices[:, 0] * np.cos(theta) - vertices[:, 1] * np.sin(theta)
+    rot_vertices[:, 1] = vertices[:, 0] * np.sin(theta) + vertices[:, 1] * np.cos(theta)
+    return polygon.copy_with(vertices=rot_vertices)
+
+def get_rotated_arrow(arrow: gl.Arrow) -> gl.Arrow:
+    """
+    Returns a rotated copy of the input Arrow object by -48 degrees around the origin (0, 0). This allows to plot
+    NIRSpec results in a square subplot.
+
+    Parameters
+    ----------
+    arrow : gl.Arrow
+        The original Arrow object to be rotated.
+
+    Returns
+    -------
+    gl.Arrow
+        A new Arrow object that is the rotated version of the input.
+    """
+    theta = ROTATION_ANGLE_NIRSPEC
+    start = np.array(arrow.pointA) + 0.5  # Convert from pixel center to edge-based coordinates
+    end = np.array(arrow.pointB) + 0.5
+    rot_start = np.empty_like(start)
+    rot_end = np.empty_like(end)
+    rot_start[0] = start[0] * np.cos(theta) - start[1] * np.sin(theta)
+    rot_start[1] = start[0] * np.sin(theta) + start[1] * np.cos(theta)
+    rot_end[0] = end[0] * np.cos(theta) - end[1] * np.sin(theta)
+    rot_end[1] = end[0] * np.sin(theta) + end[1] * np.cos(theta)
+    return arrow.copy_with(pointA=rot_start, pointB=rot_end)
+
+def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow:
+    """
+    Rotates the input element by -48 degrees around the origin (0, 0). This allows to plot NIRSpec results in a square
+    subplot.
+
+    Parameters
+    ----------
+    element : gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow
+        The original element to be rotated.
+
+    Returns
+    -------
+    gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow
+        A new element that is the rotated version of the input.
+    """
+    match (type(element)):
+        case gl.Contour:
+            return get_rotated_contour(element)
+        case gl.Heatmap:
+            return get_rotated_heatmap(element)
+        case gl.Polygon:
+            return get_rotated_polygon(element)
+        case gl.Arrow:
+            return get_rotated_arrow(element)
+        case _:
+            raise TypeError("Unsupported element type for rotation.")
 
 def make_pv_diagram(
     data_cube: np.ndarray,
