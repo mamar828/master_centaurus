@@ -47,102 +47,31 @@ def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwa
     contour = gl.Contour(smoothed_image, *np.mgrid[:image_copy.shape[0], :image_copy.shape[1]][::-1], **kwargs)
     return contour
 
-def get_rotated_contour(contour: gl.Contour) -> gl.Contour:
+def rotate_coordinates(
+    x: np.ndarray,
+    y: np.ndarray,
+    theta: float = ROTATION_ANGLE_NIRSPEC,
+) -> tuple[np.ndarray, np.ndarray]:
     """
-    Returns a rotated copy of the input Contour object by -48 degrees around the origin (0, 0). This allows to plot
-    NIRSpec results in a square subplot.
+    Apply 2D rotation to coordinate arrays.
 
     Parameters
     ----------
-    contour : gl.Contour
-        The original Contour object to be rotated.
+    x : np.ndarray
+        X coordinates to rotate.
+    y : np.ndarray
+        Y coordinates to rotate.
+    theta : float, default=ROTATION_ANGLE_NIRSPEC
+        Rotation angle in radians.
 
     Returns
     -------
-    gl.Contour
-        A new Contour object that is the rotated version of the input.
+    tuple[np.ndarray, np.ndarray]
+        Rotated (x, y) coordinates.
     """
-    theta = ROTATION_ANGLE_NIRSPEC
-    # Add 0.5 to convert from pixel center to edge-based coordinates
-    x_mesh_edges, y_mesh_edges = contour.x_mesh + 0.5, contour.y_mesh + 0.5
-    cont_rot = contour.copy_with(
-        x_mesh=np.cos(theta) * x_mesh_edges - np.sin(theta) * y_mesh_edges,
-        y_mesh=np.sin(theta) * x_mesh_edges + np.cos(theta) * y_mesh_edges,
-    )
-    return cont_rot
-
-def get_rotated_heatmap(heatmap: gl.Heatmap) -> gl.Heatmap:
-    """
-    Returns a rotated copy of the input Heatmap object by -48 degrees around the origin (0, 0). This allows to plot
-    NIRSpec results in a square subplot.
-
-    Parameters
-    ----------
-    heatmap : gl.Heatmap
-        The original Heatmap object to be rotated.
-
-    Returns
-    -------
-    gl.Heatmap
-        A new Heatmap object that is the rotated version of the input.
-    """
-    theta = ROTATION_ANGLE_NIRSPEC
-    n, m = heatmap.image.shape
-    y, x = np.mgrid[:n+1, :m+1]  # grids of each cell x/y corners
-
-    hm_rot = heatmap.copy_with(
-        x_mesh=x * np.cos(theta) - y * np.sin(theta),
-        y_mesh=x * np.sin(theta) + y * np.cos(theta),
-    )
-    return hm_rot
-
-def get_rotated_polygon(polygon: gl.Polygon) -> gl.Polygon:
-    """
-    Returns a rotated copy of the input Polygon object by -48 degrees around the origin (0, 0). This allows to plot
-    NIRSpec results in a square subplot.
-
-    Parameters
-    ----------
-    polygon : gl.Polygon
-        The original Polygon object to be rotated.
-
-    Returns
-    -------
-    gl.Polygon
-        A new Polygon object that is the rotated version of the input.
-    """
-    theta = ROTATION_ANGLE_NIRSPEC
-    vertices = polygon.vertices + 0.5  # Convert from pixel center to edge-based coordinates
-    rot_vertices = np.empty_like(vertices)
-    rot_vertices[:, 0] = vertices[:, 0] * np.cos(theta) - vertices[:, 1] * np.sin(theta)
-    rot_vertices[:, 1] = vertices[:, 0] * np.sin(theta) + vertices[:, 1] * np.cos(theta)
-    return polygon.copy_with(vertices=rot_vertices)
-
-def get_rotated_arrow(arrow: gl.Arrow) -> gl.Arrow:
-    """
-    Returns a rotated copy of the input Arrow object by -48 degrees around the origin (0, 0). This allows to plot
-    NIRSpec results in a square subplot.
-
-    Parameters
-    ----------
-    arrow : gl.Arrow
-        The original Arrow object to be rotated.
-
-    Returns
-    -------
-    gl.Arrow
-        A new Arrow object that is the rotated version of the input.
-    """
-    theta = ROTATION_ANGLE_NIRSPEC
-    start = np.array(arrow.pointA) + 0.5  # Convert from pixel center to edge-based coordinates
-    end = np.array(arrow.pointB) + 0.5
-    rot_start = np.empty_like(start)
-    rot_end = np.empty_like(end)
-    rot_start[0] = start[0] * np.cos(theta) - start[1] * np.sin(theta)
-    rot_start[1] = start[0] * np.sin(theta) + start[1] * np.cos(theta)
-    rot_end[0] = end[0] * np.cos(theta) - end[1] * np.sin(theta)
-    rot_end[1] = end[0] * np.sin(theta) + end[1] * np.cos(theta)
-    return arrow.copy_with(pointA=rot_start, pointB=rot_end)
+    x_rot = x * np.cos(theta) - y * np.sin(theta)
+    y_rot = x * np.sin(theta) + y * np.cos(theta)
+    return x_rot, y_rot
 
 def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow:
     """
@@ -161,13 +90,28 @@ def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Conto
     """
     match (type(element)):
         case gl.Contour:
-            return get_rotated_contour(element)
+            # Add 0.5 to convert from pixel center to edge-based coordinates
+            x_mesh_edges, y_mesh_edges = element.x_mesh + 0.5, element.y_mesh + 0.5
+            x_rot, y_rot = rotate_coordinates(x_mesh_edges, y_mesh_edges)
+            return element.copy_with(x_mesh=x_rot, y_mesh=y_rot)
+
         case gl.Heatmap:
-            return get_rotated_heatmap(element)
+            n, m = element.image.shape
+            y, x = np.mgrid[:n+1, :m+1]  # grids of each cell x/y corners
+            x_rot, y_rot = rotate_coordinates(x, y)
+            return element.copy_with(x_mesh=x_rot, y_mesh=y_rot)
+
         case gl.Polygon:
-            return get_rotated_polygon(element)
+            vertices = element.vertices + 0.5  # Convert from pixel center to edge-based coordinates
+            x_rot, y_rot = rotate_coordinates(vertices[:, 0], vertices[:, 1])
+            rot_vertices = np.column_stack([x_rot, y_rot])
+            return element.copy_with(vertices=rot_vertices)
+
         case gl.Arrow:
-            return get_rotated_arrow(element)
+            vertices = np.array([element.pointA, element.pointB]) + 0.5
+            x_rot, y_rot = rotate_coordinates(vertices[:, 0], vertices[:, 1])
+            return element.copy_with(pointA=[x_rot[0], y_rot[0]], pointB=[x_rot[1], y_rot[1]])
+
         case _:
             raise TypeError("Unsupported element type for rotation.")
 
