@@ -183,6 +183,26 @@ class Map(FitsObject, MathematicalObject):
         return not isinstance(self.uncertainties, SilentNone)
 
     @classmethod
+    def from_hdu(cls, hdu: fits.PrimaryHDU) -> Map:
+        """
+        Creates a Map from an PrimaryHDU.
+
+        Parameters
+        ----------
+        hdu : fits.PrimaryHDU
+            PrimaryHDU from which to create the Map.
+
+        Returns
+        -------
+        Map
+            An instance of the given class containing the PrimaryHDU's contents.
+        """
+        data = Array2D(hdu.data)
+        if len(data.shape) != 2:
+            raise TypeError("The provided data is not two-dimensional.")
+        return cls(data, SilentNone(), Header(hdu.header))
+
+    @classmethod
     def load(cls, filename: str) -> Map:
         """
         Loads a Map from a file.

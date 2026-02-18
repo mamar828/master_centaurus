@@ -286,3 +286,41 @@ class Cube(FitsObject):
             )
         else:
             raise ValueError(f"{C.RED}nan_policy must be either 'omit' or 'propagate'.{C.OFF}")
+
+    def subtract_continuum(self, order: int, slices: list[slice]) -> Self:
+        """
+        Subtracts the continuum from the Cube by fitting a polynomial of a given order to the spectrum of each spaxel
+        and subtracting the fitted continuum from the original spectrum. The fitting is done over the values included by
+        the slices.
+
+        Parameters
+        ----------
+        order : int
+            Order of the polynomial to fit to the spectrum of each spaxel.
+        slices : list[slice]
+            List of slices to include in the fitting process. The slices should be chosen to include the continuum and
+            exclude the emission lines. An arbitrary number of different slices may be provided to allow for excluding
+            specific features.
+
+        Returns
+        -------
+        Self
+            Cube with the continuum subtracted.
+        """
+        # Remove None values from slices
+        slices = [slice(0 if s.start is None else s.start,
+                        self.data.shape[0] if s.stop is None else s.stop) for s in slices]
+        spectrum_arange = np.arange(self.data.shape[0])
+        x_fit_arange = np.concatenate([np.arange(s.start, s.stop) for s in slices])
+        fit_mask = np.zeros_like(spectrum_arange, dtype=bool)
+        for s in slices:
+            fit_mask[s] = True
+
+        new_data = np.empty_like(self.data)
+        for i in range(self.shape[1]):
+            for j in range(self.shape[2]):
+                spectrum = self.data[:, i, j]
+                coeffs = np.polyfit(x_fit_arange, spectrum[fit_mask], order)
+                continuum_fit = np.polyval(coeffs, spectrum_arange)
+                new_data[:, i, j] = spectrum - continuum_fit
+        return self.__class__(new_data, self.header)

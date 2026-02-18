@@ -106,3 +106,15 @@ class Array(np.ndarray):
             Masked Array.
         """
         return np.where(mask == 0, np.nan, 1) * self
+
+    def nansum(self, *args, **kwargs):
+        return np.nansum(self, *args, **kwargs)
+
+    def nanmean(self, *args, **kwargs):
+        return np.nanmean(self, *args, **kwargs)
+
+    def nanstd(self, *args, **kwargs):
+        return np.nanstd(self, *args, **kwargs)
+
+    def nanmedian(self, *args, **kwargs):
+        return np.nanmedian(self, *args, **kwargs)
