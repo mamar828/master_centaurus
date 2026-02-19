@@ -91,7 +91,14 @@ def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Conto
     match (type(element)):
         case gl.Contour:
             # Add 0.5 to convert from pixel center to edge-based coordinates
-            x_mesh_edges, y_mesh_edges = element.x_mesh + 0.5, element.y_mesh + 0.5
+            if element.x_mesh is None or element.y_mesh is None:
+                x_mesh, y_mesh = np.meshgrid(
+                    np.arange(element.z_data.shape[1]),
+                    np.arange(element.z_data.shape[0]),
+                )
+                x_mesh_edges, y_mesh_edges = x_mesh + 0.5, y_mesh + 0.5
+            else:
+                x_mesh_edges, y_mesh_edges = element.x_mesh + 0.5, element.y_mesh + 0.5
             x_rot, y_rot = rotate_coordinates(x_mesh_edges, y_mesh_edges)
             return element.copy_with(x_mesh=x_rot, y_mesh=y_rot)
 
@@ -122,6 +129,7 @@ def make_pv_diagram(
     width: float = 1.0,
     spacing: float = 1.0,
     contour_levels: list[float] | None = None,
+    arrow_length: float = 10.0,
 ) -> tuple[gl.Polygon, list[gl.Polygon], gl.Arrow, gl.Heatmap, gl.Contour, gl.Contour]:
     """
     Creates a PV diagram from the given aperture path. This function uses the `pvextractor` library to extract the PV
@@ -147,6 +155,8 @@ def make_pv_diagram(
         along the aperture and average the data in each bin.
     contour_levels : list[float], optional
         If provided, the levels for the PV contours. If not provided, the levels are computed automatically.
+    arrow_length : float, default=10.0
+        Length of the arrow indicating the direction of the aperture, in pixels.
 
     Returns
     -------
@@ -181,7 +191,6 @@ def make_pv_diagram(
     bin_polygons = [gl.Polygon(v, line_width=0.5, fill=False, edge_color="k") for v in polygon_vertices]
 
     # Arrow to indicate direction on top of aperture
-    arrow_length = 10
     mid_point = (path_xy[0] + path_xy[-1]) / 2
     dir_vector = (path_xy[-1] - path_xy[0])
     dir_vector = dir_vector / np.linalg.norm(dir_vector)
