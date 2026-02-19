@@ -6,7 +6,8 @@ from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.wcs import WCS
 from matplotlib.colors import ListedColormap
 
-ROTATION_ANGLE_NIRSPEC = -48 * np.pi / 180  # rad
+from src.config import ROTATION_ANGLE_NIRSPEC
+
 
 def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwargs) -> gl.Contour:
     """

@@ -5,60 +5,68 @@ from astropy.constants import c as light_speed
 from typing import Literal
 
 from src.tools.miscellaneous import get_pdf_image_as_array
+from src.config import REDSHIFT
 
 
-def get_subtracted_stellar_continuum(
-    results_version: Literal["january lr", "february lr", "february hr"] = "january lr",
-    return_wavelengths: bool = False,
-) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+def get_models(
+    results_version: Literal["december lr", "february lr", "february hr"] = "december lr",
+    convert_units: bool = False,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Outputs the data minus the stellar continuum cube based on the specified Loki results version.
+    Gives the data, wavelength array, total model, and stellar continuum model for the specified Loki results version.
+    This function can be used to subtract the stellar continuum from the data or to get the fit result.
 
     Parameters
     ----------
-    results_version : Literal["january lr", "february lr", "february hr"], default="january lr"
-        The version of the Loki results to use for the stellar continuum subtraction.
-    return_wavelengths : bool, default=False
-        Whether to also return the wavelength array corresponding to the data cube. If True, the function will return a
-        tuple of (subtracted_cube, wavelengths).
+    results_version : Literal["december lr", "february lr", "february hr"], default="december lr"
+        The version of the Loki results to use for the stellar continuum subtraction and model retrieval.
+    convert_units : bool, default=False
+        Whether to convert the units of the data and models to erg/s/cm²/sr/Hz.
 
     Returns
     -------
-    np.ndarray | tuple[np.ndarray, np.ndarray]
-        A data cube giving the stellar continuum at each wavelength for each spaxel. If `return_wavelengths` is True,
-        returns a tuple of (subtracted_cube, wavelengths) where `wavelengths` is a 1D array of the wavelength values
-        corresponding to the data cube.
-
-        .. warning::
-            The returned wavelength array is in the observed frame and has not been corrected for redshift.
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        A tuple containing (data cube, wavelength array, total model cube, stellar continuum cube). The wavelength
+        array is in the rest frame and has been corrected for redshift.
     """
     match results_version:
-        case "january lr":
+        case "december lr":
             path = "full_OQBr_tied/NGC4696_G235H_F170LP_full_OQBr_tied"
         case "february lr":
             path = "QOBr_tied_global_m1_lores/NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores"
         case "february hr":
             path = "QOBr_tied_global_m1_hires/NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires"
         case _:
-            raise ValueError("Invalid results version. Choose from 'january lr', 'february lr', or 'february hr'.")
+            raise ValueError("Invalid results version. Choose from 'december lr', 'february lr', or 'february hr'.")
 
     prefix = "data/loki/output_NGC4696_G235H_F170LP_"
     suffix = "_full_model.fits"
-    loki_models = fits_open(f"{prefix}{path}{suffix}")
+    loki_hdus = fits_open(f"{prefix}{path}{suffix}")
+    data = loki_hdus[1].data
+    wavelength_arange = loki_hdus[-1].data[0][0].flatten() / (1 + REDSHIFT)
 
     # Building the stellar continuum
-    stellar_extinction = loki_models[4].data
-    raw_stellar_continuum = loki_models[8].data
-    polynomials_multiplicative = loki_models[7].data
+    stellar_extinction = loki_hdus[4].data
+    raw_stellar_continuum = loki_hdus[8].data
+    polynomials_multiplicative = loki_hdus[7].data
     raw_stellar_continuum *= polynomials_multiplicative
     stellar_continuum = raw_stellar_continuum * stellar_extinction
 
-    subtracted = loki_models[1].data - stellar_continuum
-    if return_wavelengths:
-        wavelength_arange = loki_models[-1].data[0][0].flatten()
-        return subtracted, wavelength_arange
-    else:
-        return subtracted
+    # Building the gas emission lines
+    gas_extinction = loki_hdus[5].data
+    silicates_extinction = loki_hdus[6].data
+    gas_lines = np.sum([loki_hdus[i].data for i in range(9, 29)], axis=0) * gas_extinction * silicates_extinction
+
+    total_model = stellar_continuum + gas_lines
+
+    if convert_units:
+        # Convert to erg/s/cm²/sr/Hz
+        hertz_conversion_factor = light_speed.to("micron/s").value / wavelength_arange
+        data *= hertz_conversion_factor[:, None, None]
+        total_model *= hertz_conversion_factor[:, None, None]
+        stellar_continuum *= hertz_conversion_factor[:, None, None]
+
+    return data, wavelength_arange, total_model, stellar_continuum
 
 def get_loki_grid_pdfs_figure(
     lines: list[str],
@@ -106,10 +114,8 @@ def get_loki_grid_pdfs_figure(
     return fig
 
 def get_loki_fit_figure(
-    model_filename: str,
+    results_version: Literal["december lr", "february lr", "february hr"],
     spaxel_coordinates: tuple[int, int],
-    version: int = 2,
-    data_cube_filename: str = None,
 ) -> gl.SmartFigure:
     """
     Gives a figure showing the Loki fit for a given spaxel using the specified model file.
@@ -124,52 +130,19 @@ def get_loki_fit_figure(
         .. note::
             To be consistent with Loki's output, the user may use the `FitsCoords` class to specify coordinates in
             (x, y) format and starting at (1, 1).
-    version : int, default=2
-        The iteration version of the results used. 2 is for the late october version and 3 is for the december/january
-        versions with OQBr tied. 1 is not implemented.
-    data_cube_filename : str, optional
-        If provided, the data cube used to fit the data. This allows to plot the excluded regions as shaded regions.
+    results_version : Literal["december lr", "february lr", "february hr"]
+        The version of the Loki results to use to retrieve the data and models for the fit visualization.
 
     Returns
     -------
     gl.SmartFigure
         The figure showing the Loki fit for the specified spaxel as well as the data itself.
     """
-    z = 0.0099  # redshift
-    if version not in [2, 3]:
-        raise ValueError("Only versions 2 and 3 are supported.")
-    hdu_list = fits_open(model_filename)
-    data = hdu_list[1].data
-    wavelength_arange = hdu_list[-1].data[0][0].flatten() / (1 + z)
-
-    # Building the stellar continuum
-    stellar_extinction = hdu_list[4].data
-    if version == 2:
-        raw_stellar_continuum = hdu_list[7].data
-        gas_lines_range = range(8, 28)
-    else:
-        raw_stellar_continuum = hdu_list[8].data
-        polynomials_multiplicative = hdu_list[7].data
-        raw_stellar_continuum *= polynomials_multiplicative
-        gas_lines_range = range(9, 29)
-    stellar_continuum = raw_stellar_continuum * stellar_extinction
-
-    # Building the gas emission lines
-    gas_extinction = hdu_list[5].data
-    silicates_extinction = hdu_list[6].data
-    gas_lines = np.sum([hdu_list[i].data for i in gas_lines_range], axis=0) * gas_extinction * silicates_extinction
-
-    total_model = stellar_continuum + gas_lines
-
-    # Convert to erg/s/cm²/sr/Hz
-    hertz_conversion_factor = light_speed.to("micron/s").value / wavelength_arange
-    data *= hertz_conversion_factor[:, None, None]
-    total_model *= hertz_conversion_factor[:, None, None]
-    stellar_continuum *= hertz_conversion_factor[:, None, None]
+    data, wavelength_arange, total_model, stellar_continuum = get_models(results_version, convert_units=True)
 
     # Building the emission line labels and texts
     lines = [2.2235, 2.1218, 2.0338, 1.9576, 1.8920, 1.8358, 1.7880, 1.7480, 1.7147, 2.4756, 2.5001 , 2.52802, 2.55985,
-             2.62688, 2.80251, 3.00387, 1.87561, 2.62587, 2.16612, 1.94509]  # from GEMINI
+             2.62688, 2.80251, 3.00387, 1.87561, 2.62587, 2.16612, 1.94509]  # other wavelengths are from GEMINI
     names = ["S(0)", "S(1)", "S(2)", "S(3)", "S(4)", "S(5)", "S(6)", "S(7)", "S(8)", "Q(6)", "Q(7)", "Q(8)", "Q(9)",
              "O(2)", "O(3)", "O(4)", r"Pa$\alpha$", r"Br$\beta$", r"Br$\gamma$", r"Br$\delta$"]
     name_texts = [gl.Text(line, 0.5, name, font_size=8) for line, name in zip(lines, names)]
@@ -184,28 +157,13 @@ def get_loki_fit_figure(
     error_curve = data_curve - model_curve
     error_curve.label = "data - model"
 
-    # Building the shaded regions
-    # if data_cube_filename is not None:
-    #     data_cube_hdu_list = fits_open(data_cube_filename)
-    #     header = data_cube_hdu_list[1].header
-    #     wave = header["CRVAL3"] + header["CDELT3"] * np.arange(0, header["NAXIS3"])
-    #     dq_values = data_cube_hdu_list[3].data[:, *spaxel_coordinates]
-    #     dq_mask = (dq_values != 0).astype(int)
-    #     diff = np.diff(dq_mask)
-    #     bad_starts = np.where(diff > 0)[0] + 1
-    #     bad_ends = np.where(diff < 0)[0] + 1
-    #     bad_regions = [
-    #         gl.Rectangle(wave[s], -1, wave[e] - wave[s], 2, fill=True, fill_color="gray", fill_alpha=0.5)
-    #         for s, e in zip(bad_starts, bad_ends)
-    #     ]
-
     fig = gl.SmartFigure(
         3,
         x_label=r"$\lambda_\mathrm{rest}$ [$\mu$m]",
         sub_y_labels=[None, r"$\nu/_\nu$ [erg s$^{-1}$ cm$^{-2}$ sr$^{-1}$]", None],
         elements=[
             name_texts,
-            [data_curve, model_curve, continuum_curve, line_vlines],# *bad_regions],
+            [data_curve, model_curve, continuum_curve, line_vlines],
             [error_curve, line_vlines],
         ],
         x_lim=(wavelength_arange.min(), wavelength_arange.max()),

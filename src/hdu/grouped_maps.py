@@ -9,6 +9,7 @@ from src.hdu.map import Map
 from src.hdu.arrays.array_2d import Array2D
 from src.hdu.arrays.array_3d import Array3D
 from src.hdu.header import Header
+from src.tools.miscellaneous import silence_function
 
 
 class GroupedMaps(FitsObject):
@@ -89,7 +90,7 @@ class GroupedMaps(FitsObject):
         return gm
 
     @classmethod
-    def load_from_loki(cls, filename: str) -> GroupedMaps:
+    def load_from_loki(cls, filename: str, mute: bool = False) -> GroupedMaps:
         """
         Loads a GroupedMaps from a Loki .fits file.
 
@@ -97,20 +98,29 @@ class GroupedMaps(FitsObject):
         ----------
         filename : str
             Name of the file to load.
+        mute : bool, default=False
+            Whether to completely mute the loading process.
 
         Returns
         -------
         GroupedMaps
             An instance of the given class containing the file's contents.
         """
-        hdu_list = fits.open(filename)
-        maps = []
-        for hdu in hdu_list[1:]:
-            map_ = Map(
-                data=Array2D(hdu.data),
-                header=Header(hdu.header),
-            )
-            maps.append((deepcopy(hdu.header["EXTNAME"]), [map_]))
+        def load_func():
+            hdu_list = fits.open(filename)
+            maps = []
+            for hdu in hdu_list[1:]:
+                map_ = Map(
+                    data=Array2D(hdu.data),
+                    header=Header(hdu.header),
+                )
+                maps.append((deepcopy(hdu.header["EXTNAME"]), [map_]))
+            return maps
+
+        if mute:
+            maps = silence_function(load_func)()
+        else:
+            maps = load_func()
 
         gm = cls(maps)
         return gm
