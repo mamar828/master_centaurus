@@ -32,16 +32,16 @@ class LOKIModels:
         Parameters
         ----------
         data : np.ndarray
-            The data cube from the LOKI output, in units of erg/s/cm²/sr/μm.
+            The data cube from the LOKI output, in units of erg/s/cm²/sr.
         wavelengths : np.ndarray
             The wavelengths array corresponding to the spectral axis of the data cube, in microns.
         stellar_continuum : np.ndarray
-            The stellar continuum model cube from the LOKI output, in units of erg/s/cm²/sr/μm.
+            The stellar continuum model cube from the LOKI output, in units of erg/s/cm²/sr.
         emission_extinction : np.ndarray
             The extinction cube for the emission lines from the LOKI output, in units of dimensionless extinction
             factor.
         total_model : np.ndarray
-            The total model cube from the LOKI output, in units of erg/s/cm²/sr/μm.
+            The total model cube from the LOKI output, in units of erg/s/cm²/sr.
         folder_name : str
             The name of the folder containing the LOKI output files. This is used to locate the CSV files containing
             the Gaussian parameters for individual spaxels when using the `get_gaussian_params` method.
@@ -87,8 +87,8 @@ class LOKIModels:
         emission_extinction = gas_extinction * silicates_extinction
         gas_lines = np.sum([loki_hdus[i].data for i in range(9, 29)], axis=0) * emission_extinction
 
-        # Convert to erg/s/cm²/μm/sr using F_λ = (c/λ²) F_ν
-        hertz_conversion_factor = light_speed.to("micron/s").value / (wavelengths**2)
+        # Convert to erg/s/cm²/sr
+        hertz_conversion_factor = light_speed.to("micron/s").value / (wavelengths)
         data *= hertz_conversion_factor[:, None, None]
         stellar_continuum *= hertz_conversion_factor[:, None, None]
         gas_lines *= hertz_conversion_factor[:, None, None]
@@ -148,19 +148,19 @@ class LOKIModels:
         Returns
         -------
         np.ndarray
-            The data cube with the stellar continuum subtracted, in units of erg/s/cm²/sr/μm.
+            The data cube with the stellar continuum subtracted, in units of erg/s/cm²/sr.
         """
         return self.data - self.stellar_continuum
 
-    def get_gaussian_params(
+    def get_emission_line_fluxes(
         self,
         spaxel_coordinates: tuple[int, int],
         lines: list[str],
         lambda_0s: list[float],
     ) -> np.ndarray:
         """
-        Gives the Gaussian parameters (amplitude, lambda center, and sigma) for the specified lines from a Loki output
-        CSV file. This method allows to get the contribution of individual Gaussian components to the fit.
+        Gives the fluxes of the specified lines at a given spaxel. This method allows to get the contribution of
+        individual emission components to the fit when there are multiple components for a single line.
 
         Parameters
         ----------
@@ -179,9 +179,8 @@ class LOKIModels:
         Returns
         -------
         np.ndarray
-            A 2D array of shape (len(lines), 3) containing the Gaussian parameters for each line in the order
-            (amplitude, lambda center, sigma). The amplitude is in units of erg/s/cm²/μm/sr and both the lambda center
-            and sigma are in microns.
+            A 2D array of shape (len(lines), len(wavelengths)) containing the flux of each Gaussian component for each
+            line at the specified spaxel, in units of erg/s/cm²/sr. The fluxes are extinction-corrected.
         """
         if len(lines) != len(lambda_0s):
             raise ValueError("The number of lines must match the number of rest wavelengths provided.")
@@ -197,7 +196,7 @@ class LOKIModels:
         light_speed_microns = light_speed.to("micron/s").value
         light_speed_km = light_speed.to("kilometer/s").value
 
-        gaussian_params = []
+        fluxes = []
         for line, lambda_0 in zip(lines, lambda_0s):
             amp = 10**float(df.loc[f"lines.{line}.amp", "best"])  # erg/Hz/cm²/s/sr
             voff = float(df.loc[f"lines.{line}.voff", "best"])  # km/s
@@ -206,17 +205,13 @@ class LOKIModels:
             lambda_center = lambda_0 * (1 + voff / light_speed_km)  # microns
             sigma_lambda = lambda_0 * (fwhm / light_speed_km) / (2 * np.sqrt(2 * np.log(2)))  # microns
 
-            # Apply extinction in frequency space, then convert to wavelength space
-            wavelength_idx = np.argmin(np.abs(self.wavelengths - lambda_center))
-            extinction_factor = self.emission_extinction[wavelength_idx, *FitsCoords(*spaxel_coordinates)]
-            amp *= extinction_factor  # Still in erg/Hz/cm²/s/sr
+            amp_lambda = (light_speed_microns / lambda_center) * amp  # erg/s/cm²/sr
+            gaussian = amp_lambda * np.exp(-0.5 * ((self.wavelengths - lambda_center) / sigma_lambda)**2)
+            gaussian *= self.emission_extinction[:, *FitsCoords(*spaxel_coordinates)]
 
-            # Convert from F_nu to F_lambda using F_λ = (c/λ²) F_ν
-            amp_lambda = (light_speed_microns / lambda_center**2) * amp  # erg/s/cm²/μm/sr
+            fluxes.append(gaussian)
 
-            gaussian_params.append((amp_lambda, lambda_center, sigma_lambda))
-
-        return np.array(gaussian_params)
+        return np.array(fluxes)
 
     def get_fit_figure(self, spaxel_coordinates: tuple[int, int]) -> gl.SmartFigure:
         """
@@ -256,7 +251,7 @@ class LOKIModels:
         fig = gl.SmartFigure(
             3,
             x_label=r"$\lambda_\mathrm{rest}$ [$\mu$m]",
-            sub_y_labels=[None, r"$\nu/_\nu$ [erg s$^{-1}$ cm$^{-2}$ sr$^{-1}$]", None],
+            sub_y_labels=[None, r"$\nu I_\nu$ [erg s$^{-1}$ cm$^{-2}$ sr$^{-1}$]", None],
             elements=[
                 name_texts,
                 [data_curve, model_curve, continuum_curve, line_vlines],
