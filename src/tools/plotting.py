@@ -211,6 +211,8 @@ def make_pv_diagram(
 
     # Contours
     meshes = np.meshgrid(np.arange(pv_data.shape[1]), np.arange(pv_data.shape[0]))
+    if contour_levels is None:
+        contour_levels = np.linspace(np.nanmin(pv_data), np.nanmax(pv_data), 10)[1:-1]
     pv_cont_filled = gl.Contour(pv_data, *meshes, levels=contour_levels, color_map="Reds", show_color_bar=False,
                          color_map_range=(contour_levels[0], contour_levels[-1]))
     pv_cont_lines = pv_cont_filled.copy_with(

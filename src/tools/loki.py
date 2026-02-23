@@ -114,12 +114,11 @@ def get_loki_gaussian_params(
     gaussian_params = []
     for line, lambda_0 in zip(lines, lambda_0s):
         amp = 10**float(df.loc[f"lines.{line}.amp", "best"])  # erg/Hz/cm²/s/sr
-        print(amp)
         voff = float(df.loc[f"lines.{line}.voff", "best"])  # km/s
         fwhm = float(df.loc[f"lines.{line}.fwhm", "best"])  # km/s
 
-        amp_lambda = (light_speed_microns / lambda_0**2) * amp  # erg/s/cm²/μm/sr
-        print(amp_lambda)
+        # amp_lambda = (light_speed_microns / lambda_0**2) * amp  # erg/s/cm²/μm/sr
+        amp_lambda = amp
         lambda_center = lambda_0 * (1 + voff / light_speed_km)  # microns
         sigma_lambda = lambda_0 * (fwhm / light_speed_km) / (2 * np.sqrt(2 * np.log(2)))  # microns
 
@@ -234,5 +233,3 @@ def get_loki_fit_figure(
         legend_loc=(0.85, 0.8),
     ).set_visual_params(use_latex=True).set_ticks(minor_x_tick_spacing=0.05)
     return fig
-
-get_
