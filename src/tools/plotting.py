@@ -222,3 +222,36 @@ def make_pv_diagram(
     )
 
     return aperture_poly, bin_polygons, aperture_arrow, pv_hm, pv_cont_filled, pv_cont_lines
+
+def get_N_E_arrows(
+        arrow_length: float = 5.0,
+        center: tuple[float, float] = (27, -20),
+        theta: float = ROTATION_ANGLE_NIRSPEC,
+) -> list[gl.Arrow | gl.Text]:
+    """
+    Gives plottables for the N and E arrows to be plotted to indicate the cardinal directions.
+
+    Parameters
+    ----------
+    arrow_length : float, default=5.0
+        Length of the arrows in pixels.
+    center : tuple[float, float], default=(27, -20)
+        Center of the arrows in (x, y) coordinates. This is the point from which the arrows start.
+    theta : float, default=ROTATION_ANGLE_NIRSPEC
+        Rotation angle in radians to apply to the arrows.
+
+    Returns
+    -------
+    list[gl.Arrow | gl.Text]
+        A list of plottable elements, including the N and E arrows and their labels.
+    """
+    arrow_center = np.array(center)
+    north_vector = np.array([-np.sin(theta), np.cos(theta)])
+    east_vector = np.array([-np.cos(theta), -np.sin(theta)])
+    rotated_arrows = [
+        gl.Arrow(arrow_center - 0.2*north_vector, arrow_center + arrow_length*north_vector, "k", style="->"),
+        gl.Arrow(arrow_center - 0.2*east_vector, arrow_center + arrow_length*east_vector, "k", style="->"),
+        gl.Text(*(arrow_center + north_vector * (arrow_length + 0.6)), r"\textbf{N}", "k", font_size=15),
+        gl.Text(*(arrow_center + east_vector * (arrow_length + 0.6)), r"\textbf{E}", "k", font_size=15),
+    ]
+    return rotated_arrows

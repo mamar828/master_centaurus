@@ -25,15 +25,16 @@ class GroupedMaps:
         maps : list[tuple[str, Map]]
             List of (key, value) pairs where the key is the name of the map and the value is the `Map` object itself.
         """
-        self.maps = {name: map_ for name, map_ in maps}
-        self.names = list(self.maps.keys())
+        self.map_dict = {name: map_ for name, map_ in maps}
+        self.names = list(self.map_dict.keys())
+        self.maps = list(self.map_dict.values())
 
     def __len__(self) -> int:
         return len(self.names)
 
     def __getitem__(self, name: str) -> Map:
         if name in self.names:
-            return self.maps[name]
+            return self.map_dict[name]
         else:
             close_match = get_close_matches(name, self.names, n=1, cutoff=0.6)
             if close_match:
