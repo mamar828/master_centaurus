@@ -152,6 +152,33 @@ class LOKIModels:
         """
         return self.data - self.stellar_continuum
 
+    def slice_wavelengths(self, lambda_min: float, lambda_max: float) -> Self:
+        """
+        Slices the `LOKIModels` object to a wavelength range of interest.
+
+        Parameters
+        ----------
+        lambda_min : float
+            The minimum wavelength of the slice, in microns.
+        lambda_max : float
+            The maximum wavelength of the slice, in microns. This value is not included in the slice (i.e., the slice is
+            [lambda_min, lambda_max[).
+
+        Returns
+        -------
+        Self
+            A new `LOKIModels` object containing only the data in the specified wavelength range.
+        """
+        wavelength_mask = (self.wavelengths >= lambda_min) & (self.wavelengths < lambda_max)
+        return LOKIModels(
+            data=self.data[wavelength_mask],
+            wavelengths=self.wavelengths[wavelength_mask],
+            stellar_continuum=self.stellar_continuum[wavelength_mask],
+            emission_extinction=self.emission_extinction[wavelength_mask],
+            total_model=self.total_model[wavelength_mask],
+            folder_name=self.folder_name,
+        )
+
     def get_emission_line_fluxes(
         self,
         spaxel_coordinates: tuple[int, int],
@@ -211,7 +238,8 @@ class LOKIModels:
 
             fluxes.append(gaussian)
 
-        return np.array(fluxes)
+        fluxes = np.array(fluxes)
+        return fluxes
 
     def get_fit_figure(self, spaxel_coordinates: tuple[int, int]) -> gl.SmartFigure:
         """
