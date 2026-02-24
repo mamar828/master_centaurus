@@ -85,7 +85,7 @@ class LOKIModels:
         gas_extinction = loki_hdus[5].data
         silicates_extinction = loki_hdus[6].data
         emission_extinction = gas_extinction * silicates_extinction
-        gas_lines = np.sum([loki_hdus[i].data for i in range(9, 29)], axis=0) * emission_extinction
+        gas_lines = np.sum([loki_hdus[i].data for i in range(9, len(loki_hdus)-1)], axis=0) * emission_extinction
 
         # Convert to erg/s/cm²/sr
         hertz_conversion_factor = light_speed.to("micron/s").value / (wavelengths)
