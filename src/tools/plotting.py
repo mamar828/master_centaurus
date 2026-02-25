@@ -5,9 +5,45 @@ import pvextractor
 from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.wcs import WCS
 from matplotlib.colors import ListedColormap
+import matplotlib.pyplot as plt
 
-from src.config import ROTATION_ANGLE_NIRSPEC
+from src.config import ROTATION_ANGLE_NIRSPEC, ROTATION_ANGLE_NIRSPEC_DEG
 
+
+def get_smoothed_image(image: np.ndarray, gaussian_kernel_stddev: float) -> np.ndarray:
+    """
+    Gives a smoothed version of the input image using a Gaussian kernel of the specified standard deviation. inf values
+    in the image will be interpolated using inpainting with a radius of 1 pixel.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        2D array representing the image data to smooth.
+    gaussian_kernel_stddev : float
+        Standard deviation for the Gaussian kernel used in smoothing.
+
+    Returns
+    -------
+    np.ndarray
+        The smoothed image, with inf values replaced by inpainted values.
+    """
+    # Detect and replace inf values with NaN for convolution
+    inf_mask = np.isinf(image)
+    image_copy = np.where(inf_mask, np.nan, image)
+    smoothed_image = convolve(
+        image_copy,
+        Gaussian2DKernel(gaussian_kernel_stddev),
+        boundary="extend",
+        preserve_nan=True,
+    )
+    # Interpolate NaNs using inpainting
+    smoothed_image = cv2.inpaint(
+        smoothed_image.astype(np.float32),
+        inf_mask.astype(np.uint8),
+        inpaintRadius=1,
+        flags=cv2.INPAINT_NS,
+    )
+    return smoothed_image
 
 def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwargs) -> gl.Contour:
     """
@@ -29,23 +65,8 @@ def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwa
     gl.Contour
         The smoothed Contour object, with the origin at the lower left.
     """
-    # Detect and replace inf values with NaN for convolution
-    inf_mask = np.isinf(image)
-    image_copy = np.where(inf_mask, np.nan, image)
-    smoothed_image = convolve(
-        image_copy,
-        Gaussian2DKernel(gaussian_kernel_stddev),
-        boundary="extend",
-        preserve_nan=True,
-    )
-    # Interpolate NaNs using inpainting
-    smoothed_image = cv2.inpaint(
-        smoothed_image.astype(np.float32),
-        inf_mask.astype(np.uint8),
-        inpaintRadius=1,
-        flags=cv2.INPAINT_NS,
-    )
-    contour = gl.Contour(smoothed_image, *np.mgrid[:image_copy.shape[0], :image_copy.shape[1]][::-1], **kwargs)
+    smoothed_image = get_smoothed_image(image, gaussian_kernel_stddev)
+    contour = gl.Contour(smoothed_image, *np.mgrid[:smoothed_image.shape[0], :smoothed_image.shape[1]][::-1], **kwargs)
     return contour
 
 def rotate_coordinates(
@@ -120,8 +141,13 @@ def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Conto
             x_rot, y_rot = rotate_coordinates(vertices[:, 0], vertices[:, 1])
             return element.copy_with(pointA=[x_rot[0], y_rot[0]], pointB=[x_rot[1], y_rot[1]])
 
+        case gl.Ellipse:
+            center = np.array([element.x_center, element.y_center]) + 0.5
+            x_rot, y_rot = rotate_coordinates(center[0], center[1])
+            return element.copy_with(x_center=x_rot, y_center=y_rot, angle=(element.angle + ROTATION_ANGLE_NIRSPEC_DEG))
+
         case _:
-            raise TypeError("Unsupported element type for rotation.")
+            raise TypeError(f"Unsupported element type: {type(element)}")
 
 def make_pv_diagram(
     data_cube: np.ndarray,
@@ -255,3 +281,57 @@ def get_N_E_arrows(
         gl.Text(*(arrow_center + east_vector * (arrow_length + 0.6)), r"\textbf{E}", "k", font_size=15),
     ]
     return rotated_arrows
+
+def get_wcs_transformed_contours(
+    data: np.ndarray,
+    source_wcs: WCS,
+    target_wcs: WCS,
+    levels: list[float],
+    **polygon_kwargs
+) -> list[gl.Polygon]:
+    """
+    Create contours from data in its native resolution, then transform the contour coordinates from the source WCS to
+    target WCS pixel coordinates. This preserves the detail in the source data while plotting it in the target
+    coordinate system. However, this function returns the contour lines as Polygon objects.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array representing the source image data in its native resolution.
+    source_wcs : WCS
+        WCS object for the source data coordinate system.
+    target_wcs : WCS
+        WCS object for the target coordinate system.
+    levels : list[float]
+        Contour levels to compute.
+    **polygon_kwargs
+        Additional keyword arguments to pass to each Polygon constructor (e.g., edge_color, line_width).
+
+    Returns
+    -------
+    list[gl.Polygon]
+        List of Polygon objects representing the transformed contour lines.
+    """
+    # Create a temporary figure to extract contour paths at native resolution
+    _, ax = plt.subplots()
+    y_pix, x_pix = np.mgrid[0:data.shape[0], 0:data.shape[1]]
+    cs = ax.contour(x_pix, y_pix, data, levels=levels)
+    plt.close()
+
+    contour_polygons = []
+    for level_segments in cs.allsegs:
+        for vertices in level_segments:
+            if len(vertices) < 3:  # Skip degenerate contours
+                continue
+
+            # vertices shape: (N, 2) where vertices[:, 0] is x, vertices[:, 1] is y
+            # Transform: source pixel -> source world -> target world -> target pixel
+            world_coords = source_wcs.pixel_to_world(vertices[:, 0], vertices[:, 1])
+            target_x, target_y = target_wcs.world_to_pixel(world_coords)
+
+            # Create polygon from transformed vertices
+            transformed_vertices = np.column_stack([target_x, target_y])
+            polygon = gl.Polygon(transformed_vertices, **polygon_kwargs)
+            contour_polygons.append(polygon)
+
+    return contour_polygons

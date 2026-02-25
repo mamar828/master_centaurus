@@ -32,15 +32,20 @@ class GroupedMaps:
     def __len__(self) -> int:
         return len(self.names)
 
-    def __getitem__(self, name: str) -> Map:
-        if name in self.names:
-            return self.map_dict[name]
-        else:
-            close_match = get_close_matches(name, self.names, n=1, cutoff=0.6)
-            if close_match:
-                raise AttributeError(f"GroupedMaps has no attribute '{name}'. Did you mean '{close_match[0]}'?")
+    def __getitem__(self, key: str | int) -> Map:
+        if key in self.names:
+            return self.map_dict[key]
+        elif isinstance(key, int):
+            if 0 <= key < len(self.maps):
+                return self.maps[key]
             else:
-                raise AttributeError(f"GroupedMaps has no attribute '{name}'.")
+                raise IndexError(f"Index {key} is out of range for GroupedMaps with {len(self)} maps.")
+        else:
+            close_match = get_close_matches(key, self.names, n=1, cutoff=0.6)
+            if close_match:
+                raise AttributeError(f"GroupedMaps has no attribute '{key}'. Did you mean '{close_match[0]}'?")
+            else:
+                raise AttributeError(f"GroupedMaps has no attribute '{key}'.")
 
     def __getattr__(self, name: str) -> Map:
         return self[name]
