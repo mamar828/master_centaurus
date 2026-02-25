@@ -341,3 +341,27 @@ class LOKIModels:
             aspect_ratio=1,
         )
         return fig
+
+    def get_peak_height(self, wavelength: float, channels_tolerance: int = 10) -> float:
+        """
+        Gives the height of a peak in the total model at a given wavelength. This is useful for plotting the names of
+        the peaks just above them.
+
+        Parameters
+        ----------
+        wavelength : float
+            The wavelength at which to get the peak height, in microns.
+        channels_tolerance : int, default=10
+            The number of channels around the specified wavelength to consider when looking for the peak. This is needed
+            to account for small shifts in the peak position due to the fit.
+
+        Returns
+        -------
+        float
+            The height of the peak in the total model at the specified wavelength, in units of erg/s/cm²/sr.
+        """
+        wavelength_center_channel = np.argmin(np.abs(self.wavelengths - wavelength))
+        lower_bound = max(0, wavelength_center_channel - channels_tolerance)
+        upper_bound = min(len(self.wavelengths), wavelength_center_channel + channels_tolerance + 1)
+        peak_height = self.total_model[lower_bound:upper_bound, :, :].max()
+        return peak_height
