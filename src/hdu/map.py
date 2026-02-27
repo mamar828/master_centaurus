@@ -182,6 +182,14 @@ class Map(FitsObject, MathematicalObject):
     def has_uncertainties(self) -> bool:
         return not isinstance(self.uncertainties, SilentNone)
 
+    @property
+    def plot(self) -> Heatmap:
+        if not self.has_uncertainties:
+            return self.data.plot
+        else:
+            raise AttributeError("Since the Map has uncertainties, the plot method is ambiguous. Use the Map.data.plot "
+                                 "or Map.uncertainties.plot methods instead.")
+
     @classmethod
     def from_hdu(cls, hdu: fits.PrimaryHDU) -> Map:
         """

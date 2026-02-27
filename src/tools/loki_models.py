@@ -107,19 +107,20 @@ class LOKIModels:
     @classmethod
     def load_from_version(
         cls,
-        version: Literal["december lr", "february lr", "february hr"] = "december lr"
+        version: Literal["december lr", "february lr", "february hr", "final"] = "final"
     ) -> Self:
         """
         Constructs a `LOKIModels` object from a specified version of the LOKI models.
 
         Parameters
         ----------
-        version : Literal["december lr", "february lr", "february hr"], default="december lr"
+        version : Literal["december lr", "february lr", "february hr", "final"], default="december lr"
             The version of the LOKI models to load. This allows to use predefined versions of the results without
-            having to specify the path toward the FITS file. The versions correspond to the following FITS files:
-            - "december lr": `data/loki/output_NGC4696_G235H_F170LP_full_OQBr_tied.fits`
-            - "february lr": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores.fits`
-            - "february hr": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires.fits`
+            having to specify the path toward the FITS file. The versions correspond to the following folders:
+            - "december lr": `data/loki/output_NGC4696_G235H_F170LP_full_OQBr_tied`
+            - "february lr": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores`
+            - "february hr": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires`
+            - "final": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_fewlines_largeFWHM`
 
         Returns
         -------
@@ -133,6 +134,9 @@ class LOKIModels:
                 path = "QOBr_tied_global_m1_lores/NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores"
             case "february hr":
                 path = "QOBr_tied_global_m1_hires/NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires"
+            case "final":
+                path = "QOBr_tied_global_m1_lores_fewlines_largeFWHM/"\
+                     + "NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_fewlines_largeFWHM"
             case _:
                 raise ValueError(f"Invalid results version: {version}")
 

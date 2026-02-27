@@ -64,6 +64,23 @@ class Header(fits.Header):
         spectral_wcs = self.wcs.spectral
         return self._update_wcs(spectral_wcs)
 
+    @property
+    def wavelengths(self) -> np.ndarray:
+        """
+        Returns the wavelengths corresponding to each channel of the spectral axis. This is useful for plotting and for
+        any operation that requires the wavelengths, for example when trying to get the wavelengths at each channel.
+
+        .. warning::
+            This method assumes that the header has a spectral axis.
+        """
+        try:
+            spectral_self = self.spectral
+        except ValueError:
+            raise ValueError(f"{C.RED}The Header does not have a spectral axis.{C.OFF}")
+
+        wavelengths = spectral_self.pixel_to_world(np.arange(spectral_self["NAXIS1"])[:, None])
+        return wavelengths
+
     def _h_axis(self, axis: int) -> int:
         """
         Converts a numpy axis to a header axis.
@@ -226,7 +243,7 @@ class Header(fits.Header):
         Parameters
         ----------
         axis : int
-            Axis to invert. The Header is modified in place.
+            Axis to invert. The Header is modified in place. This must be given in numpy format, not FITS format.
 
         Returns
         -------
@@ -287,7 +304,7 @@ class Header(fits.Header):
         other : Header
             Second Header to merge the current Header with.
         axis : int
-            Index of the axis on which to execute the merge.
+            Index of the axis on which to execute the merge. This must be given in numpy format, not FITS format.
 
         Returns
         -------

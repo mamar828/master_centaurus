@@ -191,13 +191,13 @@ class Cube(FitsObject):
         return self[self.data.get_nan_cropping_slices()]
 
     @silence_function
-    def get_masked_region(self, region: pyregion.core.ShapeList) -> Self:
+    def get_masked_region(self, region: pyregion.core.ShapeList | None) -> Self:
         """
         Gives the Cube within a region.
 
         Parameters
         ----------
-        region : pyregion.core.ShapeList
+        region : pyregion.core.ShapeList | None
             Region that will be kept in the final Cube. If None, the whole cube is returned.
 
         Returns

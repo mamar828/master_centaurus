@@ -42,3 +42,9 @@ def get_pdf_image_as_array(filename: str, page_number: int = 0, dpi: int = 300) 
     pages = convert_from_path(filename, dpi=dpi)
     image = np.array(pages[page_number])
     return image
+
+def normalize_0_1(array: np.ndarray) -> np.ndarray:
+    """
+    Normalizes a numpy array to the range [0, 1], ignoring NaN values.
+    """
+    return (array - np.nanmin(array)) / (np.nanmax(array) - np.nanmin(array))
