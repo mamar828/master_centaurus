@@ -66,7 +66,8 @@ class LOKIModels:
         Returns
         -------
         Self
-            The newly constructed `LOKIModels` object.
+            The newly constructed `LOKIModels` object. Note that the wavelengths are corrected for the redshift of the
+            source.
         """
         folder_name = "/".join(filename.split("/")[:-1])
 
