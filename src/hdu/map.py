@@ -30,7 +30,7 @@ class Map(FitsObject, MathematicalObject):
     Note: the formula for natural logarithm propagation is incorrect, no b factor should be present.
     """
 
-    def __init__(self, data: Array2D, uncertainties: Array2D = SilentNone(), header: Header = SilentNone()):
+    def __init__(self, data: Array2D, header: Header = SilentNone(), uncertainties: Array2D = SilentNone()):
         """
         Initialize a Map object.
 
@@ -38,10 +38,10 @@ class Map(FitsObject, MathematicalObject):
         ----------
         data : Array2D
             The values of the Map.
-        uncertainties : Array2D, default=SilentNone()
-            The uncertainties of the Map.
         header : Header, default=SilentNone()
             Header of the Map.
+        uncertainties : Array2D, default=SilentNone()
+            The uncertainties of the Map.
         """
         if isinstance(uncertainties, fits.Header):
             raise TypeError(
@@ -49,22 +49,22 @@ class Map(FitsObject, MathematicalObject):
             )
 
         self.data = Array2D(data)
-        self.uncertainties = Array2D(uncertainties) if not type(uncertainties) == SilentNone else uncertainties
-        self.header = Header(header) if not type(header) == SilentNone else header
+        self.header = Header(header) if not isinstance(header, SilentNone) else header
+        self.uncertainties = Array2D(uncertainties) if not isinstance(uncertainties, SilentNone) else uncertainties
 
     def __add__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
             return self.__class__(
                 self.data + other.data,
+                self.header,
                 np.sqrt(self.uncertainties**2 + other.uncertainties**2),
-                self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
             return self.__class__(
                 self.data + other,
+                self.header,
                 self.uncertainties,
-                self.header
             )
         else:
             raise NotImplementedError(
@@ -75,14 +75,14 @@ class Map(FitsObject, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data - other.data,
+                self.header,
                 np.sqrt(self.uncertainties**2 + other.uncertainties**2),
-                self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
             return self.__class__(
                 self.data - other,
+                self.header,
                 self.uncertainties,
-                self.header
             )
         else:
             raise NotImplementedError(
@@ -93,14 +93,14 @@ class Map(FitsObject, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data * other.data,
+                self.header,
                 self.data*other.data * np.sqrt((self.uncertainties/self.data)**2 + (other.uncertainties/other.data)**2),
-                self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
             return self.__class__(
                 self.data * other,
+                self.header,
                 self.uncertainties * abs(other),
-                self.header
             )
         else:
             raise NotImplementedError(
@@ -111,14 +111,14 @@ class Map(FitsObject, MathematicalObject):
             self.assert_shapes(other)
             return self.__class__(
                 self.data / other.data,
+                self.header,
                 self.data/other.data * np.sqrt((self.uncertainties/self.data)**2 + (other.uncertainties/other.data)**2),
-                self.header
             )
         elif isinstance(other, (int, float)) or (isinstance(other, np.ndarray) and other.size == 1):
             return self.__class__(
                 self.data / other,
+                self.header,
                 self.uncertainties / abs(other),
-                self.header
             )
         else:
             raise NotImplementedError(
@@ -130,8 +130,8 @@ class Map(FitsObject, MathematicalObject):
             pow_data = self.data.astype(float)**power
             return self.__class__(
                 pow_data,
+                self.header,
                 pow_data * np.abs(power * self.uncertainties / self.data),
-                self.header
             )
         else:
             raise NotImplementedError(
@@ -140,8 +140,8 @@ class Map(FitsObject, MathematicalObject):
     def __abs__(self) -> Self:
         return self.__class__(
             np.abs(self.data),
+            self.header,
             self.uncertainties,
-            self.header
         )
 
     def __getitem__(self, slices: tuple[slice | int]) -> Array2D | Spectrum | Map:
@@ -155,8 +155,8 @@ class Map(FitsObject, MathematicalObject):
         else:
             return self.__class__(
                 self.data[slices],
+                self.header.slice(slices),
                 self.uncertainties[slices],
-                header=self.header.slice(slices)
             )
 
     def __iter__(self) -> Self:
@@ -208,7 +208,7 @@ class Map(FitsObject, MathematicalObject):
         data = Array2D(hdu.data)
         if len(data.shape) != 2:
             raise TypeError("The provided data is not two-dimensional.")
-        return cls(data, SilentNone(), Header(hdu.header))
+        return cls(data, Header(hdu.header), SilentNone())
 
     @classmethod
     def load(cls, filename: str) -> Map:
@@ -235,7 +235,7 @@ class Map(FitsObject, MathematicalObject):
                  +f" two will be opened.{C.OFF}")
         if len(data.shape) != 2:
             raise TypeError("The provided data is not two-dimensional.")
-        return cls(data, uncertainties, Header(hdu_list[0].header))
+        return cls(data, Header(hdu_list[0].header), uncertainties)
 
     @property
     def hdu_list(self) -> fits.HDUList:
@@ -300,8 +300,8 @@ class Map(FitsObject, MathematicalObject):
         """
         return self.__class__(
             self.data.bin(bins, ignore_nans),
+            self.header.bin(bins),
             self.uncertainties.bin(bins, ignore_nans),
-            self.header.bin(bins)
         )
 
     def crop_nans(self) -> Self:
@@ -326,8 +326,8 @@ class Map(FitsObject, MathematicalObject):
         """
         return self.__class__(
             np.log(self.data),
+            self.header,
             self.uncertainties / self.data,
-            self.header
         )
 
     def exp(self) -> Self:
@@ -342,8 +342,8 @@ class Map(FitsObject, MathematicalObject):
         exp_data = np.exp(self.data)
         return self.__class__(
             exp_data,
+            self.header,
             exp_data * self.uncertainties,
-            self.header
         )
 
     def num_to_nan(self, num: float = 0) -> Self:
@@ -395,8 +395,8 @@ class Map(FitsObject, MathematicalObject):
             mask = np.ones_like(self.data)
         return self.__class__(
             self.data * mask,
+            self.header,
             self.uncertainties * mask,
-            self.header
         )
 
     def mask(self, mask: np.ndarray) -> Self:
@@ -417,8 +417,8 @@ class Map(FitsObject, MathematicalObject):
             raise ValueError(f"{C.RED}Mask shape {mask.shape} does not match Map shape {self.data.shape}.{C.OFF}")
         return self.__class__(
             self.data.mask(mask),
-            self.uncertainties.mask(mask),
             self.header,
+            self.uncertainties.mask(mask),
         )
 
     def get_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
@@ -487,6 +487,6 @@ class Map(FitsObject, MathematicalObject):
             uncertainties_reprojection = self.uncertainties
         return self.__class__(
             data_reprojection,
+            header.copy(),
             uncertainties_reprojection,
-            header=header.copy()
         )
