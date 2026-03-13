@@ -8,6 +8,9 @@ from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 
 from src.config import ROTATION_ANGLE_NIRSPEC, ROTATION_ANGLE_NIRSPEC_DEG
+from src.hdu.header import Header
+from src.coordinates.celestial_coords import RA, DEC
+from src.coordinates.fits_coords import FitsCoords
 
 
 def get_smoothed_image(image: np.ndarray, gaussian_kernel_stddev: float) -> np.ndarray:
@@ -37,12 +40,12 @@ def get_smoothed_image(image: np.ndarray, gaussian_kernel_stddev: float) -> np.n
         preserve_nan=True,
     )
     # Interpolate NaNs using inpainting
-    smoothed_image = cv2.inpaint(
-        smoothed_image.astype(np.float32),
-        inf_mask.astype(np.uint8),
-        inpaintRadius=1,
-        flags=cv2.INPAINT_NS,
-    )
+    # smoothed_image = cv2.inpaint(
+    #     smoothed_image.astype(np.float32),
+    #     inf_mask.astype(np.uint8),
+    #     inpaintRadius=1,
+    #     flags=cv2.INPAINT_NS,
+    # )
     return smoothed_image
 
 def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwargs) -> gl.Contour:
@@ -253,6 +256,8 @@ def get_N_E_arrows(
         arrow_length: float = 5.0,
         center: tuple[float, float] = (27, -20),
         theta: float = ROTATION_ANGLE_NIRSPEC,
+        arrow_offset: float = 0.2,
+        text_offset: float = 0.6,
 ) -> list[gl.Arrow | gl.Text]:
     """
     Gives plottables for the N and E arrows to be plotted to indicate the cardinal directions.
@@ -265,6 +270,11 @@ def get_N_E_arrows(
         Center of the arrows in (x, y) coordinates. This is the point from which the arrows start.
     theta : float, default=ROTATION_ANGLE_NIRSPEC
         Rotation angle in radians to apply to the arrows.
+    arrow_offset : float, default=0.2
+        Offset in pixels to apply to the starting point of the arrows in order to ensure their starting point overlaps.
+    text_offset : float, default=0.6
+        Additional offset in pixels to apply to the position of the N and E labels, in order to ensure they do not
+        overlap with the tip of the arrows.
 
     Returns
     -------
@@ -275,10 +285,10 @@ def get_N_E_arrows(
     north_vector = np.array([-np.sin(theta), np.cos(theta)])
     east_vector = np.array([-np.cos(theta), -np.sin(theta)])
     rotated_arrows = [
-        gl.Arrow(arrow_center - 0.2*north_vector, arrow_center + arrow_length*north_vector, "k", style="->"),
-        gl.Arrow(arrow_center - 0.2*east_vector, arrow_center + arrow_length*east_vector, "k", style="->"),
-        gl.Text(*(arrow_center + north_vector * (arrow_length + 0.6)), r"\textbf{N}", "k", font_size=15),
-        gl.Text(*(arrow_center + east_vector * (arrow_length + 0.6)), r"\textbf{E}", "k", font_size=15),
+        gl.Arrow(arrow_center - arrow_offset*north_vector, arrow_center + arrow_length*north_vector, "k", style="->"),
+        gl.Arrow(arrow_center - arrow_offset*east_vector, arrow_center + arrow_length*east_vector, "k", style="->"),
+        gl.Text(*(arrow_center + north_vector * (arrow_length + text_offset)), r"\textbf{N}", "k", font_size=15),
+        gl.Text(*(arrow_center + east_vector * (arrow_length + text_offset)), r"\textbf{E}", "k", font_size=15),
     ]
     return rotated_arrows
 
@@ -335,3 +345,39 @@ def get_wcs_transformed_contours(
             contour_polygons.append(polygon)
 
     return contour_polygons
+
+def get_AGN_pos(
+    header: Header,
+    rotated: bool = False,
+) -> gl.Point:
+    """
+    Gets the position of the AGN in pixel coordinates as a gl.Point object. This is done by transforming the AGN world
+    coordinates (RA, Dec) to pixel coordinates using the WCS information in the header.
+
+    Parameters
+    ----------
+    header : Header
+        The header containing the WCS information and the AGN world coordinates.
+    rotated : bool, default=False
+        Whether to apply the NIRSpec rotation to the AGN position. If True, the position will be rotated by -48 degrees
+        around the origin (0, 0) to match the orientation of the NIRSpec data.
+
+    Returns
+    -------
+    gl.Point
+        A gl.Point object representing the position of the AGN in pixel coordinates as a red cross.
+    """
+    agn_world_coords = [RA.from_sexagesimal("12:48:49.2609").degrees, DEC.from_sexagesimal("-41:18:39.417").degrees]
+    agn_python_coords = header.celestial.world_to_pixel(agn_world_coords)[0]
+
+    if rotated:
+        agn_coords = FitsCoords.from_python(*agn_python_coords)
+        theta = ROTATION_ANGLE_NIRSPEC
+        agn_edge_coords = np.array(agn_coords.data) + 0.5 - 1  # +0.5 for edge coords, -1 to start plotting at (0, 0)
+        rot_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+        agn_coords = rot_matrix @ agn_edge_coords
+    else:
+        agn_coords = tuple(reversed(agn_python_coords))
+
+    point = gl.Point(*agn_coords, marker_style="x", face_color="red", marker_size=50)
+    return point
