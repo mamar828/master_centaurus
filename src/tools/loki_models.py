@@ -108,20 +108,21 @@ class LOKIModels:
     @classmethod
     def load_from_version(
         cls,
-        version: Literal["december lr", "february lr", "february hr", "final"] = "final"
+        version: Literal["december lr", "february lr", "february hr", "large_fwhm", "data_continuum"],
     ) -> Self:
         """
         Constructs a `LOKIModels` object from a specified version of the LOKI models.
 
         Parameters
         ----------
-        version : Literal["december lr", "february lr", "february hr", "final"], default="december lr"
+        version : Literal["december lr", "february lr", "february hr", "large_fwhm"], default="december lr"
             The version of the LOKI models to load. This allows to use predefined versions of the results without
             having to specify the path toward the FITS file. The versions correspond to the following folders:
             - "december lr": `data/loki/output_NGC4696_G235H_F170LP_full_OQBr_tied`
             - "february lr": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores`
             - "february hr": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires`
-            - "final": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_fewlines_largeFWHM`
+            - "large_fwhm": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_fewlines_largeFWHM`
+            - "data_continuum": `data/loki/output_NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_DataContinuum`
 
         Returns
         -------
@@ -135,9 +136,12 @@ class LOKIModels:
                 path = "QOBr_tied_global_m1_lores/NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores"
             case "february hr":
                 path = "QOBr_tied_global_m1_hires/NGC4696_G235H_F170LP_QOBr_tied_global_m1_hires"
-            case "final":
+            case "large_fwhm":
                 path = "QOBr_tied_global_m1_lores_fewlines_largeFWHM/"\
                      + "NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_fewlines_largeFWHM"
+            case "data_continuum":
+                path = "QOBr_tied_global_m1_lores_DataContinuum/"\
+                     + "NGC4696_G235H_F170LP_QOBr_tied_global_m1_lores_DataContinuum"
             case _:
                 raise ValueError(f"Invalid results version: {version}")
 
@@ -183,6 +187,23 @@ class LOKIModels:
             total_model=self.total_model[wavelength_mask],
             folder_name=self.folder_name,
         )
+
+    def get_index_of_wavelength(self, wavelength: float) -> int:
+        """
+        Gives the index of the channel corresponding to a given wavelength.
+
+        Parameters
+        ----------
+        wavelength : float
+            The wavelength for which to get the index, in microns.
+
+        Returns
+        -------
+        int
+            The index of the channel corresponding to the specified wavelength.
+        """
+        index = np.argmin(np.abs(self.wavelengths - wavelength))
+        return index
 
     def get_emission_line_fluxes(
         self,
