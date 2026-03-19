@@ -4,6 +4,7 @@ import cv2
 import pvextractor
 from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 
@@ -40,12 +41,12 @@ def get_smoothed_image(image: np.ndarray, gaussian_kernel_stddev: float) -> np.n
         preserve_nan=True,
     )
     # Interpolate NaNs using inpainting
-    # smoothed_image = cv2.inpaint(
-    #     smoothed_image.astype(np.float32),
-    #     inf_mask.astype(np.uint8),
-    #     inpaintRadius=1,
-    #     flags=cv2.INPAINT_NS,
-    # )
+    smoothed_image = cv2.inpaint(
+        smoothed_image.astype(np.float32),
+        inf_mask.astype(np.uint8),
+        inpaintRadius=1,
+        flags=cv2.INPAINT_NS,
+    )
     return smoothed_image
 
 def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwargs) -> gl.Contour:
@@ -367,8 +368,11 @@ def get_AGN_pos(
     gl.Point
         A gl.Point object representing the position of the AGN in pixel coordinates as a red cross.
     """
-    agn_world_coords = [RA.from_sexagesimal("12:48:49.2609").degrees, DEC.from_sexagesimal("-41:18:39.417").degrees]
-    agn_python_coords = header.celestial.world_to_pixel(agn_world_coords)[0]
+    agn_world_coords_fk5 = SkyCoord(ra="12h48m49.2609s", dec="-41d18m39.417s", frame="fk5", equinox="J2000")
+    coordinate_system = header["radesys"].lower()
+    agn_world_coords = agn_world_coords_fk5.transform_to(coordinate_system)
+    ra, dec = map(lambda attr: getattr(agn_world_coords, attr).value, ["ra", "dec"])
+    agn_python_coords = header.celestial.world_to_pixel([ra, dec])[0]
 
     if rotated:
         agn_coords = FitsCoords.from_python(*agn_python_coords)
