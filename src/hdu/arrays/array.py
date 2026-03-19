@@ -105,7 +105,7 @@ class Array(np.ndarray):
         Self
             Masked Array.
         """
-        return np.where(mask == 0, np.nan, 1) * self
+        return np.where(mask == 1, np.nan, 1) * self
 
     def nansum(self, *args, **kwargs):
         return np.nansum(self, *args, **kwargs)

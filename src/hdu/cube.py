@@ -221,7 +221,7 @@ class Cube(FitsObject):
 
     def mask(self, mask: np.ndarray) -> Self:
         """
-        Masks the Cube with a given boolean mask.
+        Masks the Cube with a given boolean mask. The returned Cube will have np.NAN values where the mask is True.
 
         Parameters
         ----------

@@ -4,7 +4,6 @@ import pyregion
 import scipy
 from graphinglib import Heatmap
 from astropy.io import fits
-from scipy.ndimage import rotate as ndimage_rotate
 from uncertainties import ufloat
 from reproject import reproject_interp
 from typing import Self
@@ -369,7 +368,7 @@ class Map(FitsObject, MathematicalObject):
         return map_
 
     @silence_function
-    def get_masked_region(self, region: pyregion.Shape | pyregion.ShapeList) -> Self:
+    def get_masked_region(self, region: pyregion.Shape | pyregion.ShapeList | None) -> Self:
         """
         Gives the Map within a region.
 
@@ -401,7 +400,7 @@ class Map(FitsObject, MathematicalObject):
 
     def mask(self, mask: np.ndarray) -> Self:
         """
-        Masks the Map with a given boolean mask. The returned Map will have np.NAN values where the mask is False.
+        Masks the Map with a given boolean mask. The returned Map will have np.NAN values where the mask is True.
 
         Parameters
         ----------
