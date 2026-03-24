@@ -210,7 +210,7 @@ class Map(FitsObject, MathematicalObject):
         return cls(data, Header(hdu.header), SilentNone())
 
     @classmethod
-    def load(cls, filename: str) -> Map:
+    def load(cls, filename: str, hdu_index: int = 0) -> Map:
         """
         Loads a Map from a file.
 
@@ -218,6 +218,8 @@ class Map(FitsObject, MathematicalObject):
         ----------
         filename : str
             Filename from which to load the Map.
+        hdu_index : int, default=0
+            Index of the HDU to load from the file. This parameter allows loading files with multiple HDUs.
 
         Returns
         -------
@@ -225,16 +227,12 @@ class Map(FitsObject, MathematicalObject):
             An instance of the given class containing the file's contents.
         """
         hdu_list = fits.open(filename)
-        data = Array2D(hdu_list[0].data)
+        data = Array2D(hdu_list[hdu_index].data)
+        header = Header(hdu_list[hdu_index].header)
         uncertainties = SilentNone()
-        if len(hdu_list) > 1:
-            uncertainties = Array2D(hdu_list[1].data)
-        if len(hdu_list) > 2:
-            print(f"{C.YELLOW}Warning: the given file {filename} contains more than two HDU elements. Only the first"
-                 +f" two will be opened.{C.OFF}")
         if len(data.shape) != 2:
             raise TypeError("The provided data is not two-dimensional.")
-        return cls(data, Header(hdu_list[0].header), uncertainties)
+        return cls(data, header, uncertainties)
 
     @property
     def hdu_list(self) -> fits.HDUList:
