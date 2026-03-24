@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from src.config import ROTATION_ANGLE_NIRSPEC, ROTATION_ANGLE_NIRSPEC_DEG
 from src.hdu.header import Header
 from src.coordinates.celestial_coords import RA, DEC
-from src.coordinates.fits_coords import FitsCoords
 
 
 def get_smoothed_image(image: np.ndarray, gaussian_kernel_stddev: float) -> np.ndarray:
@@ -99,19 +98,21 @@ def rotate_coordinates(
     y_rot = x * np.sin(theta) + y * np.cos(theta)
     return x_rot, y_rot
 
-def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow:
+def rotate(
+    element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point,
+) -> gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point:
     """
     Rotates the input element by -48 degrees around the origin (0, 0). This allows to plot NIRSpec results in a square
     subplot.
 
     Parameters
     ----------
-    element : gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow
+    element : gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point
         The original element to be rotated.
 
     Returns
     -------
-    gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow
+    gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point
         A new element that is the rotated version of the input.
     """
     match (type(element)):
@@ -149,6 +150,11 @@ def rotate(element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow) -> gl.Conto
             center = np.array([element.x_center, element.y_center]) + 0.5
             x_rot, y_rot = rotate_coordinates(center[0], center[1])
             return element.copy_with(x_center=x_rot, y_center=y_rot, angle=(element.angle + ROTATION_ANGLE_NIRSPEC_DEG))
+
+        case gl.Point:
+            center = np.array([element.x, element.y]) + 0.5
+            x_rot, y_rot = rotate_coordinates(center[0], center[1])
+            return element.copy_with(x=x_rot, y=y_rot)
 
         case _:
             raise TypeError(f"Unsupported element type: {type(element)}")
@@ -254,11 +260,12 @@ def make_pv_diagram(
     return aperture_poly, bin_polygons, aperture_arrow, pv_hm, pv_cont_filled, pv_cont_lines
 
 def get_N_E_arrows(
-        arrow_length: float = 5.0,
-        center: tuple[float, float] = (27, -20),
-        theta: float = ROTATION_ANGLE_NIRSPEC,
-        arrow_offset: float = 0.2,
-        text_offset: float = 0.6,
+    arrow_length: float = 5.0,
+    center: tuple[float, float] = (27, -20),
+    theta: float = ROTATION_ANGLE_NIRSPEC,
+    arrow_offset: float = 0.2,
+    text_offset: float = 0.6,
+    color: str = "k",
 ) -> list[gl.Arrow | gl.Text]:
     """
     Gives plottables for the N and E arrows to be plotted to indicate the cardinal directions.
@@ -276,6 +283,8 @@ def get_N_E_arrows(
     text_offset : float, default=0.6
         Additional offset in pixels to apply to the position of the N and E labels, in order to ensure they do not
         overlap with the tip of the arrows.
+    color : str, default="k"
+        Color of the arrows and text.
 
     Returns
     -------
@@ -286,10 +295,10 @@ def get_N_E_arrows(
     north_vector = np.array([-np.sin(theta), np.cos(theta)])
     east_vector = np.array([-np.cos(theta), -np.sin(theta)])
     rotated_arrows = [
-        gl.Arrow(arrow_center - arrow_offset*north_vector, arrow_center + arrow_length*north_vector, "k", style="->"),
-        gl.Arrow(arrow_center - arrow_offset*east_vector, arrow_center + arrow_length*east_vector, "k", style="->"),
-        gl.Text(*(arrow_center + north_vector * (arrow_length + text_offset)), r"\textbf{N}", "k", font_size=15),
-        gl.Text(*(arrow_center + east_vector * (arrow_length + text_offset)), r"\textbf{E}", "k", font_size=15),
+        gl.Arrow(arrow_center - arrow_offset*north_vector, arrow_center + arrow_length*north_vector, color, style="->"),
+        gl.Arrow(arrow_center - arrow_offset*east_vector, arrow_center + arrow_length*east_vector, color, style="->"),
+        gl.Text(*(arrow_center + north_vector * (arrow_length + text_offset)), r"\textbf{N}", color, font_size=15),
+        gl.Text(*(arrow_center + east_vector * (arrow_length + text_offset)), r"\textbf{E}", color, font_size=15),
     ]
     return rotated_arrows
 
@@ -374,14 +383,8 @@ def get_AGN_pos(
     ra, dec = map(lambda attr: getattr(agn_world_coords, attr).value, ["ra", "dec"])
     agn_python_coords = header.celestial.world_to_pixel([ra, dec])[0]
 
-    if rotated:
-        agn_coords = FitsCoords.from_python(*agn_python_coords)
-        theta = ROTATION_ANGLE_NIRSPEC
-        agn_edge_coords = np.array(agn_coords.data) + 0.5 - 1  # +0.5 for edge coords, -1 to start plotting at (0, 0)
-        rot_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-        agn_coords = rot_matrix @ agn_edge_coords
-    else:
-        agn_coords = tuple(reversed(agn_python_coords))
-
+    agn_coords = tuple(reversed(agn_python_coords))
     point = gl.Point(*agn_coords, marker_style="x", face_color="red", marker_size=50)
+    if rotated:
+        point = rotate(point)
     return point
