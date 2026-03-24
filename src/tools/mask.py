@@ -12,14 +12,14 @@ class Mask:
     Note that all values must be given in pixels.
     """
 
-    def __init__(self, image_shape: tuple[int, int]):
+    def __init__(self, *image_shape: tuple[int, int]):
         """
         Initializes a Mask object.
 
         Parameters
         ----------
-        image_shape : tuple[int, int]
-            Shape (x, y) of the image for which the mask will be used.
+        *image_shape : tuple[int, int]
+            Shape (y, x) of the image for which the mask will be used.
         """
         self.image_shape = image_shape
 
@@ -50,7 +50,7 @@ class Mask:
         Parameters
         ----------
         center : tuple[float, float]
-            Center (x, y) of the circular mask.
+            Center (y, x) of the circular mask.
         radius : float
             Radius of the circular mask.
 
@@ -59,7 +59,7 @@ class Mask:
         np.ndarray
             Generated circular mask.
         """
-        region_id = f"image;circle({center[0]},{center[1]},{radius})"
+        region_id = f"image;circle({center[1]},{center[0]},{radius})"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
 
@@ -76,7 +76,7 @@ class Mask:
         Parameters
         ----------
         center : tuple[float, float]
-            Center (x, y) of the elliptical mask.
+            Center (y, x) of the elliptical mask.
         semi_major_axis : float
             Length in pixels of the semi-major axis. With an angle of zero, the semi-major axis is parallel to the x
             axis.
@@ -92,7 +92,7 @@ class Mask:
         np.ndarray
             Generated elliptical mask.
         """
-        region_id = f"image;ellipse({center[0]},{center[1]},{semi_major_axis},{semi_minor_axis},{angle})"
+        region_id = f"image;ellipse({center[1]},{center[0]},{semi_major_axis},{semi_minor_axis},{angle})"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
 
@@ -103,7 +103,7 @@ class Mask:
         Parameters
         ----------
         center : tuple[float, float]
-            Center (x, y) of the rectangular mask.
+            Center (y, x) of the rectangular mask.
         length : float
             Length of the rectangular mask.  With an angle of zero, the length is parallel to the x axis.
         height : float
@@ -117,7 +117,7 @@ class Mask:
         np.ndarray
             Generated rectangular mask.
         """
-        region_id = f"image;box({center[0]},{center[1]},{length},{height},{angle})"
+        region_id = f"image;box({center[1]},{center[0]},{length},{height},{angle})"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
 
@@ -128,7 +128,7 @@ class Mask:
         Parameters
         ----------
         vertices : np.ndarray
-            Vertices of the polygon. Each sub-array represents the (x, y) coordinates of a vertice. The generated
+            Vertices of the polygon. Each sub-array represents the (y, x) coordinates of a vertice. The generated
             polygon links the given vertices in the same order as given in the list and links the last vertice with the
             first.
 
@@ -137,7 +137,7 @@ class Mask:
         np.ndarray
             Generated polygonal mask.
         """
-        region_id = f"image;polygon{tuple(vertices.flatten())}"
+        region_id = f"image;polygon{tuple(vertices[:,::-1].flatten())}"
         region = pyregion.parse(region_id)
         return self._get_numpy_mask(region)
 
@@ -148,7 +148,7 @@ class Mask:
         Parameters
         ----------
         center : tuple[float, float]
-            Center (x, y) of the ring.
+            Center (y, x) of the ring.
         inner_radius : float
             Inner radius of the ring.
         outer_radius : float
