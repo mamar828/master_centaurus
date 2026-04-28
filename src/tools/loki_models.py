@@ -286,10 +286,11 @@ class LOKIModels:
             The figure showing the Loki fit for the specified spaxel as well as the data itself.
         """
         # Building the emission line labels and texts
+        # Some wavelengths from GEMINI, all in microns:
         lines = [2.2235, 2.1218, 2.0338, 1.9576, 1.8920, 1.8358, 1.7880, 1.7480, 1.7147, 2.4756, 2.5001 , 2.52802,
-                 2.55985, 2.62688, 2.80251, 3.00387, 1.87561, 2.62587, 2.16612, 1.94509]  # some wavelengths from GEMINI
-        names = ["S(0)", "S(1)", "S(2)", "S(3)", "S(4)", "S(5)", "S(6)", "S(7)", "S(8)", "Q(6)", "Q(7)", "Q(8)", "Q(9)",
-                "O(2)", "O(3)", "O(4)", r"Pa$\alpha$", r"Br$\beta$", r"Br$\gamma$", r"Br$\delta$"]
+                 2.55985, 2.62688, 2.80251, 3.00387, 1.87561, 2.62587, 2.16612, 1.94509]
+        names = ["S(0)", "S(1)", "S(2)", "S(3)", "S(4)", "S(5)", "S(6)", "S(7)", "S(8)", "Q(6)", "Q(7)", "Q(8)",
+                 "Q(9)", "O(2)", "O(3)", "O(4)", r"Pa$\alpha$", r"Br$\beta$", r"Br$\gamma$", r"Br$\delta$"]
         name_texts = [gl.Text(line, 0.5, name, font_size=8) for line, name in zip(lines, names)]
         line_vlines = gl.Vlines(lines, colors="gray", line_styles="dashed", line_widths=1)
 

@@ -16,7 +16,7 @@ class GroupedMaps:
     different maps using either attributes or keys.
     """
 
-    def __init__(self, maps: list[tuple[str, Map]]) -> None:
+    def __init__(self, maps: list[tuple[str, Map]], header: Header | None = None) -> None:
         """
         Initializes a GroupedMaps object.
 
@@ -24,10 +24,14 @@ class GroupedMaps:
         ----------
         maps : list[tuple[str, Map]]
             List of (key, value) pairs where the key is the name of the map and the value is the `Map` object itself.
+        header : Header, optional
+            A header that can be associated with the whole collection of maps. This is typically the first header of a
+            hdu list, which isn't associated with any map but contains metadata about the collection of maps.
         """
         self.map_dict = {name: map_ for name, map_ in maps}
         self.names = list(self.map_dict.keys())
         self.maps = list(self.map_dict.values())
+        self.header = header
 
     def __len__(self) -> int:
         return len(self.names)
@@ -72,12 +76,13 @@ class GroupedMaps:
         """
         def load_func():
             hdu_list = fits.open(filename)
+            header = Header(hdu_list[0].header)
             maps = [(hdu.name, Map(data=Array2D(hdu.data), header=Header(hdu.header))) for hdu in hdu_list[1:]]
-            return maps
+            return maps, header
 
         if mute:
-            maps = silence_function(load_func)()
+            maps, header = silence_function(load_func)()
         else:
-            maps = load_func()
+            maps, header = load_func()
 
-        return cls(maps)
+        return cls(maps, header)

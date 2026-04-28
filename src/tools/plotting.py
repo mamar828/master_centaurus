@@ -3,6 +3,7 @@ import graphinglib as gl
 import cv2
 import pvextractor
 from astropy.convolution import convolve, Gaussian2DKernel
+from astropy import units as u
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from matplotlib.colors import ListedColormap
@@ -99,20 +100,20 @@ def rotate_coordinates(
     return x_rot, y_rot
 
 def rotate(
-    element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point,
-) -> gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point:
+    element: gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point | gl.Line,
+) -> gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point | gl.Line:
     """
     Rotates the input element by -48 degrees around the origin (0, 0). This allows to plot NIRSpec results in a square
     subplot.
 
     Parameters
     ----------
-    element : gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point
+    element : gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point | gl.Line
         The original element to be rotated.
 
     Returns
     -------
-    gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point
+    gl.Contour | gl.Heatmap | gl.Polygon | gl.Arrow | gl.Ellipse | gl.Point | gl.Line
         A new element that is the rotated version of the input.
     """
     match (type(element)):
@@ -141,7 +142,7 @@ def rotate(
             rot_vertices = np.column_stack([x_rot, y_rot])
             return element.copy_with(vertices=rot_vertices)
 
-        case gl.Arrow:
+        case gl.Arrow | gl.Line:
             vertices = np.array([element.pointA, element.pointB]) + 0.5
             x_rot, y_rot = rotate_coordinates(vertices[:, 0], vertices[:, 1])
             return element.copy_with(pointA=[x_rot[0], y_rot[0]], pointB=[x_rot[1], y_rot[1]])
@@ -167,6 +168,8 @@ def make_pv_diagram(
     spacing: float = 1.0,
     contour_levels: list[float] | None = None,
     arrow_length: float = 10.0,
+    x_arange: np.ndarray | None = None,
+    y_arange: np.ndarray | None = None,
 ) -> tuple[gl.Polygon, list[gl.Polygon], gl.Arrow, gl.Heatmap, gl.Contour, gl.Contour]:
     """
     Creates a PV diagram from the given aperture path. This function uses the `pvextractor` library to extract the PV
@@ -194,6 +197,14 @@ def make_pv_diagram(
         If provided, the levels for the PV contours. If not provided, the levels are computed automatically.
     arrow_length : float, default=10.0
         Length of the arrow indicating the direction of the aperture, in pixels.
+    x_arange : np.ndarray, optional
+        If provided, the x coordinates for the PV heatmap and contours. This is useful to transform the heatmaps and
+        contours to physical coordinates (e.g., pc) instead of pixel coordinates. If not provided, the x coordinates are
+        in pixel units. If provided, y_arange must also be provided.
+    y_arange : np.ndarray, optional
+        If provided, the y coordinates for the PV heatmap and contours. This is useful to transform the heatmaps and
+        contours to physical coordinates (e.g., km/s) instead of pixel coordinates. If not provided, the y coordinates
+        are in pixel units. If provided, x_arange must also be provided.
 
     Returns
     -------
@@ -257,14 +268,19 @@ def make_pv_diagram(
         line_widths=0.5,
     )
 
+    if x_arange is not None and y_arange is not None:
+        x_mesh, y_mesh = np.meshgrid(x_arange, y_arange)
+        pv_hm = pv_hm.copy_with(x_mesh=x_mesh, y_mesh=y_mesh)
+        pv_cont_filled = pv_cont_filled.copy_with(x_mesh=x_mesh, y_mesh=y_mesh)
+        pv_cont_lines = pv_cont_lines.copy_with(x_mesh=x_mesh, y_mesh=y_mesh)
+
     return aperture_poly, bin_polygons, aperture_arrow, pv_hm, pv_cont_filled, pv_cont_lines
 
 def get_N_E_arrows(
     arrow_length: float = 5.0,
     center: tuple[float, float] = (27, -20),
     theta: float = ROTATION_ANGLE_NIRSPEC,
-    arrow_offset: float = 0.2,
-    text_offset: float = 0.6,
+    text_offset: float = 1.5,
     color: str = "k",
 ) -> list[gl.Arrow | gl.Text]:
     """
@@ -278,8 +294,6 @@ def get_N_E_arrows(
         Center of the arrows in (x, y) coordinates. This is the point from which the arrows start.
     theta : float, default=ROTATION_ANGLE_NIRSPEC
         Rotation angle in radians to apply to the arrows.
-    arrow_offset : float, default=0.2
-        Offset in pixels to apply to the starting point of the arrows in order to ensure their starting point overlaps.
     text_offset : float, default=0.6
         Additional offset in pixels to apply to the position of the N and E labels, in order to ensure they do not
         overlap with the tip of the arrows.
@@ -295,8 +309,8 @@ def get_N_E_arrows(
     north_vector = np.array([-np.sin(theta), np.cos(theta)])
     east_vector = np.array([-np.cos(theta), -np.sin(theta)])
     rotated_arrows = [
-        gl.Arrow(arrow_center - arrow_offset*north_vector, arrow_center + arrow_length*north_vector, color, style="->"),
-        gl.Arrow(arrow_center - arrow_offset*east_vector, arrow_center + arrow_length*east_vector, color, style="->"),
+        gl.Arrow(arrow_center, arrow_center + arrow_length*north_vector, color, style="->"),
+        gl.Arrow(arrow_center, arrow_center + arrow_length*east_vector, color, style="->"),
         gl.Text(*(arrow_center + north_vector * (arrow_length + text_offset)), r"\textbf{N}", color, font_size=15),
         gl.Text(*(arrow_center + east_vector * (arrow_length + text_offset)), r"\textbf{E}", color, font_size=15),
     ]
@@ -358,7 +372,8 @@ def get_wcs_transformed_contours(
 
 def get_AGN_pos(
     header: Header,
-    rotated: bool = False,
+    ra: str = "12h48m49.2625s",
+    dec: str = "-41d18m39.429s",
 ) -> gl.Point:
     """
     Gets the position of the AGN in pixel coordinates as a gl.Point object. This is done by transforming the AGN world
@@ -368,23 +383,66 @@ def get_AGN_pos(
     ----------
     header : Header
         The header containing the WCS information and the AGN world coordinates.
-    rotated : bool, default=False
-        Whether to apply the NIRSpec rotation to the AGN position. If True, the position will be rotated by -48 degrees
-        around the origin (0, 0) to match the orientation of the NIRSpec data.
+    ra : str, default="12h48m49.2625s"
+        Right Ascension of the AGN in sexagesimal and FK5 format (e.g., "12h48m49.2625s").
+    dec : str, default="-41d18m39.429s"
+        Declination of the AGN in sexagesimal and FK5 format (e.g., "-41d18m39.429s").
 
     Returns
     -------
     gl.Point
         A gl.Point object representing the position of the AGN in pixel coordinates as a red cross.
     """
-    agn_world_coords_fk5 = SkyCoord(ra="12h48m49.2609s", dec="-41d18m39.417s", frame="fk5", equinox="J2000")
+    agn_world_coords_fk5 = SkyCoord(ra=ra, dec=dec, frame="fk5", equinox="J2000")
     coordinate_system = header["radesys"].lower()
     agn_world_coords = agn_world_coords_fk5.transform_to(coordinate_system)
-    ra, dec = map(lambda attr: getattr(agn_world_coords, attr).value, ["ra", "dec"])
-    agn_python_coords = header.celestial.world_to_pixel([ra, dec])[0]
+    transformed_ra, transformed_dec = map(lambda attr: getattr(agn_world_coords, attr).value, ["ra", "dec"])
+    agn_python_coords = header.celestial.world_to_pixel([transformed_ra, transformed_dec])[0]
 
     agn_coords = tuple(reversed(agn_python_coords))
     point = gl.Point(*agn_coords, marker_style="x", face_color="red", marker_size=50)
-    if rotated:
-        point = rotate(point)
     return point
+
+def get_scale_bar(
+    header: Header,
+    length_arcsec: float,
+    length_label: str,
+    center_position: tuple[float, float] = (20, 20),
+    text_offset: float = 3.0,
+    scale_bar_color: str = "k",
+) -> tuple[gl.Line, gl.Text]:
+    """
+    Gives a scale bar of the specified length in arcseconds and parsecs, along with a label indicating the length.
+
+    Parameters
+    ----------
+    header : Header
+        The header containing the WCS information needed to convert the length from arcseconds to pixels.
+    length_arcsec : float
+        The length of the scale bar in arcseconds.
+    length_label : str
+        The label to display next to the scale bar, indicating the physical length (e.g., "100 pc").
+    center_position : tuple[float, float], default=(20, 20)
+        The (x, y) position in pixels where the center of the scale bar should be placed.
+    text_offset : float, default=3.0
+        The offset in pixels to apply to the position of the label, to ensure it does not overlap with the scale bar.
+    scale_bar_color : str, default="k"
+        Color of the scale bar.
+
+    Returns
+    -------
+    tuple[gl.Line, gl.Text]
+        A tuple containing the scale bar as a gl.Line object and the label as a gl.Text object.
+    """
+    # Convert length from arcseconds to pixels using WCS
+    pixel_scale = header.celestial.wcs.proj_plane_pixel_scales()[0]  # Assuming square pixels
+    length_pixels = (length_arcsec * u.arcsec) / pixel_scale
+
+    line_start = np.array(center_position) - np.array([length_pixels / 2, 0])
+    line_end = line_start + np.array([length_pixels, 0])  # Horizontal scale bar
+    scale_bar_line = gl.Line(line_start, line_end, color=scale_bar_color, width=2, capped_line=True, cap_width=0.5)
+
+    label_position = (line_start + line_end) / 2 + np.array([0, text_offset])
+    scale_bar_label = gl.Text(*label_position, length_label, color="k", highlight_alpha=0.7, highlight_color="white")
+
+    return scale_bar_line, scale_bar_label
