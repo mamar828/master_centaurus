@@ -372,8 +372,10 @@ def get_wcs_transformed_contours(
 
 def get_AGN_pos(
     header: Header,
-    ra: str = "12h48m49.2625s",
-    dec: str = "-41d18m39.429s",
+    ra: str = "12h48m49.2583s",
+    dec: str = "-41d18m39.441s",
+    coordinate_system: str = "icrs",
+    equinox: str = "J2000",
 ) -> gl.Point:
     """
     Gets the position of the AGN in pixel coordinates as a gl.Point object. This is done by transforming the AGN world
@@ -383,19 +385,23 @@ def get_AGN_pos(
     ----------
     header : Header
         The header containing the WCS information and the AGN world coordinates.
-    ra : str, default="12h48m49.2625s"
-        Right Ascension of the AGN in sexagesimal and FK5 format (e.g., "12h48m49.2625s").
-    dec : str, default="-41d18m39.429s"
-        Declination of the AGN in sexagesimal and FK5 format (e.g., "-41d18m39.429s").
+    ra : str, default="12h48m49.2583s"
+        Right Ascension of the AGN in sexagesimal format (e.g., "12h48m49.2583s").
+    dec : str, default="-41d18m39.441s"
+        Declination of the AGN in sexagesimal format (e.g., "-41d18m39.441s").
+    coordinate_system : str, default="icrs"
+        The coordinate system of the input RA and Dec.
+    equinox : str, default="J2000"
+        The equinox of the input RA and Dec.
 
     Returns
     -------
     gl.Point
         A gl.Point object representing the position of the AGN in pixel coordinates as a red cross.
     """
-    agn_world_coords_fk5 = SkyCoord(ra=ra, dec=dec, frame="fk5", equinox="J2000")
-    coordinate_system = header["radesys"].lower()
-    agn_world_coords = agn_world_coords_fk5.transform_to(coordinate_system)
+    agn_world_coords_fk5 = SkyCoord(ra=ra, dec=dec, frame=coordinate_system, equinox=equinox)
+    header_coordinate_system = header["radesys"].lower()
+    agn_world_coords = agn_world_coords_fk5.transform_to(header_coordinate_system)
     transformed_ra, transformed_dec = map(lambda attr: getattr(agn_world_coords, attr).value, ["ra", "dec"])
     agn_python_coords = header.celestial.world_to_pixel([transformed_ra, transformed_dec])[0]
 
