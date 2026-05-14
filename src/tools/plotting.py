@@ -70,7 +70,7 @@ def get_smoothed_contour(image: np.ndarray, gaussian_kernel_stddev: float, **kwa
         The smoothed Contour object, with the origin at the lower left.
     """
     smoothed_image = get_smoothed_image(image, gaussian_kernel_stddev)
-    contour = gl.Contour(smoothed_image, *np.mgrid[:smoothed_image.shape[0], :smoothed_image.shape[1]][::-1], **kwargs)
+    contour = gl.Contour(smoothed_image, **kwargs)
     return contour
 
 def rotate_coordinates(
@@ -452,3 +452,49 @@ def get_scale_bar(
     scale_bar_label = gl.Text(*label_position, length_label, color="k", highlight_alpha=0.7, highlight_color="white")
 
     return scale_bar_line, scale_bar_label
+
+def get_psf_plot(
+    header: Header,
+    diameter_arcsec: float,
+    center: tuple[float, float] = (5, 5),
+    text: str = None,
+    text_offset: float = 0.0,
+    color: str = "k",
+) -> tuple[gl.Circle, gl.Text] | gl.Circle:
+    """
+    Gives a circle representing the PSF size.
+
+    Parameters
+    ----------
+    header : Header
+        The header containing the WCS information needed to convert the diameter from arcseconds to pixels.
+    diameter_arcsec : float
+        The diameter of the PSF in arcseconds.
+    center : tuple[float, float], default=(5, 5)
+        The (x, y) position in pixels where the center of the PSF circle should be placed.
+    text : str, optional
+        An optional label to display above the PSF circle, e.g. "NIRSpec PSF".
+    text_offset : float, default=0.0
+        The offset in pixels to apply to the position of the label, to ensure it does not overlap with the PSF circle.
+        The label is placed above the circle, so the offset is applied in the positive y direction.
+    color : str, default="k"
+        Color of the PSF circle and text.
+
+    Returns
+    -------
+    tuple[gl.Circle, gl.Text] | gl.Circle
+        If a text label is provided, returns a tuple containing a gl.Circle object representing the PSF size and a
+        gl.Text object for the label. If no text label is provided, returns only the gl.Circle object.
+    """
+    # Convert length from arcseconds to pixels using WCS
+    pixel_scale = header.celestial.wcs.proj_plane_pixel_scales()[0]
+    diameter_pixels = ((diameter_arcsec * u.arcsec) / pixel_scale).decompose().value
+
+    psf_circle = gl.Circle(*center, diameter_pixels/2, fill=True, fill_color=color, line_width=0, fill_alpha=1)
+
+    if text is not None:
+        psf_text = gl.Text(center[0], center[1] + diameter_pixels/2 + text_offset, text,
+                           color=color, h_align="center", v_align="bottom")
+        return psf_circle, psf_text
+    else:
+        return psf_circle
