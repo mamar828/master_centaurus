@@ -443,9 +443,17 @@ class Map(FitsObject, MathematicalObject):
             "mean": np.nanmean(uncertainties_array)[()],
             "nbpixels": np.count_nonzero(~np.isnan(reg_map.data)),
             "stddev": float(np.nanstd(reg_map.data)),
-            "skewness": scipy.stats.skew(reg_map.data, axis=None, nan_policy="omit"),
-            "kurtosis": scipy.stats.kurtosis(reg_map.data, axis=None, nan_policy="omit")
         }
+        try:
+            stats["skewness"] = scipy.stats.skew(reg_map.data, axis=None, nan_policy="omit")
+        except Exception as e:
+            warning(f"{C.YELLOW}Could not compute skewness: {e}{C.OFF}")
+            stats["skewness"] = np.nan
+        try:
+            stats["kurtosis"] = scipy.stats.kurtosis(reg_map.data, axis=None, nan_policy="omit")
+        except Exception as e:
+            warning(f"{C.YELLOW}Could not compute kurtosis: {e}{C.OFF}")
+            stats["kurtosis"] = np.nan
 
         return stats
 
