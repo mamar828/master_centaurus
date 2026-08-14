@@ -98,16 +98,25 @@ def get_fitted_structure_function_figure(
             )[0])
 
         parameters = np.array(parameters)
-        m, b = parameters.mean(axis=0)
-        dm, db = parameters.std(axis=0)  # uncertainties on the m and b parameters
-        slope = ufloat(m, dm)
+        slope = parameters.mean(axis=0)[0]
+        slope_uncertainty = parameters.std(axis=0)[0]
+
+        amplitude = curve_fit(
+            f=lambda x, b: b * x**slope,
+            xdata=x_values_fit,
+            ydata=y_values_fit,
+            p0=[20],
+            maxfev=100000
+        )[0]
+
         fit = gl.Curve.from_function(
-            lambda x: b * x**m,
+            lambda x: amplitude * x**slope,
             *fit_bounds,
             color="red",
-            label=f"Slope: ${f"{slope:.2u}".replace("+/-", r"\pm")}$",
+            label=f"Slope: ${f"{ufloat(slope, slope_uncertainty):.2u}".replace("+/-", r"\pm")}$",
             line_width=2,
         )
+
     except Exception as e:
         print(f"Error while fitting the structure function: {e}")
         fit = None
