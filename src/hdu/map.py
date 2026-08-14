@@ -418,7 +418,7 @@ class Map(FitsObject, MathematicalObject):
             self.uncertainties.mask(mask),
         )
 
-    def get_statistics(self, region: pyregion.core.ShapeList=None) -> dict:
+    def get_statistics(self, region: pyregion.core.ShapeList=None, mute: bool = False) -> dict:
         """
         Gives the statistics of the map's data. Supported statistic measures are: median, mean, nbpixels stddev,
         skewness and kurtosis. The statistics may be computed in a region, if one is given. This method is for
@@ -428,6 +428,9 @@ class Map(FitsObject, MathematicalObject):
         ---------
         region: pyregion.core.ShapeList, default=None
             If present, region in which the statistics need to be calculated.
+        mute : bool, default=False
+            Whether to mute the errors when computing skewness or kurtosis. This is useful if errors are expected (e.g.
+            due to insufficient data points) and the user does not want to be spammed with warnings.
 
         Returns
         -------
@@ -436,23 +439,28 @@ class Map(FitsObject, MathematicalObject):
         """
         reg_map = self.get_masked_region(region)
 
-        uncertainties_array = np.vectorize(lambda data, unc: ufloat(data, unc))(reg_map.data, reg_map.uncertainties)
+        if reg_map.has_uncertainties:
+            array = np.vectorize(lambda data, unc: ufloat(data, unc))(reg_map.data, reg_map.uncertainties)
+        else:
+            array = reg_map.data
 
         stats =  {
-            "median": np.nanmedian(uncertainties_array)[()],
-            "mean": np.nanmean(uncertainties_array)[()],
+            "median": np.nanmedian(array)[()],
+            "mean": np.nanmean(array)[()],
             "nbpixels": np.count_nonzero(~np.isnan(reg_map.data)),
             "stddev": float(np.nanstd(reg_map.data)),
         }
         try:
             stats["skewness"] = scipy.stats.skew(reg_map.data, axis=None, nan_policy="omit")
         except Exception as e:
-            warning(f"{C.YELLOW}Could not compute skewness: {e}{C.OFF}")
+            if not mute:
+                warning(f"{C.YELLOW}Could not compute skewness: {e}{C.OFF}")
             stats["skewness"] = np.nan
         try:
             stats["kurtosis"] = scipy.stats.kurtosis(reg_map.data, axis=None, nan_policy="omit")
         except Exception as e:
-            warning(f"{C.YELLOW}Could not compute kurtosis: {e}{C.OFF}")
+            if not mute:
+                warning(f"{C.YELLOW}Could not compute kurtosis: {e}{C.OFF}")
             stats["kurtosis"] = np.nan
 
         return stats
