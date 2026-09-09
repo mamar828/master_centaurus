@@ -52,7 +52,7 @@ double sum(const std::vector<double>& vals) {
 /**
  * \brief Computes the sum of a vector_2d.
  */
-double sum(const std::vector<std::vector<double>>& vals) {
+double sum(const vector_2d& vals) {
     double total = accumulate(
         vals.begin(), vals.end(), 0.0,
         [](double acc, const vector<double>& val_vector) {
@@ -154,7 +154,7 @@ double standard_deviation(const vector<double>& vals) {
 /**
  * \brief Counts the number of non nan elements in a vector_2d.
  */
-int count_non_nan(const std::vector<std::vector<double>>& vals) {
+int count_non_nan(const vector_2d& vals) {
     int size = accumulate(
         vals.begin(), vals.end(), 0,
         [](int acc, const vector<double>& val_vector) {

@@ -59,8 +59,9 @@ def get_fitted_structure_function_figure(
         Data from which to compute the structure function. This should be the data outputted by the function
         `structure_function`.
     fit_bounds : tuple[float, float]
-        x interval in which to execute the linear fit. This should exclude the first few points and the points until
-        decorrelation, i.e. where the curve is not linear anymore.
+        x interval within which to execute the linear fit. General consensus is that the fit should be done from the
+        smallest resolvable scale (e.g. PSF) to half the size of the window within which the structure function is
+        computed (e.g. the radius of the circular window).
     number_of_iterations : int, default=1000
         Number of Monte-Carlo iterations to compute the fit uncertainty.
 

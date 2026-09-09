@@ -116,9 +116,10 @@ vector_2d structure_function(
             auto it = next(bin_groups.begin(), i);  // access ith element
             const auto& [dist, vals] = *it;
 
-            vector<double> pow_values = pow(vals, (double)order);
-            int N = pow_values.size();
+            int N = vals.size();
             if (N == 1) continue;  // skip if there is only one value
+
+            vector<double> pow_values = pow(vals, (double)order);
 
             double mean_val = mean(pow_values);
             double std_val = standard_deviation(pow_values);
