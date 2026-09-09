@@ -51,6 +51,11 @@ class Map(FitsObject, MathematicalObject):
         self.header = Header(header) if not isinstance(header, SilentNone) else header
         self.uncertainties = Array2D(uncertainties) if not isinstance(uncertainties, SilentNone) else uncertainties
 
+    def __eq__(self, other: Map) -> bool:
+        same_array = np.allclose(self.data, other.data, equal_nan=True)
+        same_header = self.header == other.header
+        return same_array and same_header
+
     def __add__(self, other: Map | int | float | np.ndarray) -> Self:
         if isinstance(other, Map):
             self.assert_shapes(other)
@@ -176,6 +181,10 @@ class Map(FitsObject, MathematicalObject):
     @property
     def shape(self) -> np.ndarray:
         return self.data.shape
+
+    @property
+    def num_pixels(self) -> int:
+        return np.count_nonzero(~np.isnan(self.data))
 
     @property
     def has_uncertainties(self) -> bool:

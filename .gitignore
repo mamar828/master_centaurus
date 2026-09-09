@@ -5,6 +5,8 @@
 *.dll
 *.dat
 *.so
+*.bck
+*.bck.*
 
 # Exclude these file prefixes
 __*
