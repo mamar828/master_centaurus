@@ -29,7 +29,12 @@ class Map(FitsObject, MathematicalObject):
     Note: the formula for natural logarithm propagation is incorrect, no b factor should be present.
     """
 
-    def __init__(self, data: Array2D, header: Header = SilentNone(), uncertainties: Array2D = SilentNone()):
+    def __init__(
+        self,
+        data: Array2D,
+        header: Header | SilentNone = SilentNone(),
+        uncertainties: Array2D | SilentNone = SilentNone(),
+    ):
         """
         Initialize a Map object.
 
@@ -47,9 +52,53 @@ class Map(FitsObject, MathematicalObject):
                 f"{C.RED}Uncertainties must be an Array2D object, not a Header.{C.OFF}"
             )
 
-        self.data = Array2D(data)
-        self.header = Header(header) if not isinstance(header, SilentNone) else header
-        self.uncertainties = Array2D(uncertainties) if not isinstance(uncertainties, SilentNone) else uncertainties
+        self.data = data
+        self.header = header
+        self.uncertainties = uncertainties
+
+    @property
+    def data(self) -> Array2D:
+        return self._data
+
+    @data.setter
+    def data(self, value: Array2D):
+        if not isinstance(value, np.ndarray):
+            raise TypeError(
+                f"{C.RED}Data must be a type convertible to an Array2D object, not a {type(value).__name__}.{C.OFF}"
+            )
+        else:
+            self._data = Array2D(value)
+
+    @property
+    def uncertainties(self) -> Array2D | SilentNone:
+        return self._uncertainties
+
+    @uncertainties.setter
+    def uncertainties(self, value: Array2D | SilentNone):
+        if not isinstance(value, (np.ndarray, SilentNone)):
+            raise TypeError(
+                f"{C.RED}Uncertainties must be a type convertible to an Array2D object or SilentNone, not a "
+                f"{type(value).__name__}.{C.OFF}"
+            )
+        elif isinstance(value, np.ndarray):
+            self._uncertainties = Array2D(value)
+        else:
+            self._uncertainties = value
+
+    @property
+    def header(self) -> Header | SilentNone:
+        return self._header
+
+    @header.setter
+    def header(self, value: Header | SilentNone):
+        if not isinstance(value, (Header, SilentNone)):
+            raise TypeError(
+                f"{C.RED}Header must be a Header or SilentNone object, not a {type(value).__name__}.{C.OFF}"
+            )
+        elif isinstance(value, SilentNone):
+            self._header = value
+        else:
+            self._header = Header(value)
 
     def __eq__(self, other: Map) -> bool:
         same_array = np.allclose(self.data, other.data, equal_nan=True)
