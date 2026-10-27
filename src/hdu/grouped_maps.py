@@ -60,7 +60,8 @@ class GroupedMaps:
     @classmethod
     def load(cls, filename: str, mute: bool = False) -> GroupedMaps:
         """
-        Loads a collection of maps from a FITS file to a GroupedMaps object
+        Loads a collection of maps from a FITS file to a GroupedMaps object. The header of the GroupedMaps object is set
+        to the header of the first extension of the FITS file.
 
         Parameters
         ----------

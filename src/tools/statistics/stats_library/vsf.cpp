@@ -124,7 +124,7 @@ vector_2d structure_function(
             double mean_val = mean(pow_values);
             double std_val = standard_deviation(pow_values);
             double structure = mean_val;
-            double structure_uncertainty = std_val / (sqrt(N - 1));  // sample standard error
+            double structure_uncertainty = std_val / sqrt(N);  // standard error on the position of the mean
 
             // Store result in thread-local buffer
             local_output.push_back({dist, structure, structure_uncertainty});
